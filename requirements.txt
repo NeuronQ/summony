@@ -1,0 +1,5 @@
+ipykernel==6.29.5
+jupyterlab==4.2.5
+notebook==7.2.2
+ipython==8.27.0
+ipdb==0.13.13
