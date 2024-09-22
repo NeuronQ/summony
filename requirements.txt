@@ -3,3 +3,14 @@ jupyterlab==4.2.5
 notebook==7.2.2
 ipython==8.27.0
 ipdb==0.13.13
+
+ipywidgets==8.1.5
+
+python-dotenv==1.0.1
+
+openai==1.47.0
+anthropic==0.34.2
+groq==0.11.0
+
+Markdown==3.7
+dataclasses-json==0.6.7
