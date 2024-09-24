@@ -25,7 +25,7 @@ Certainly! Here are Maxwell's equations written in Markdown format with LaTeX us
 
 These are the fundamental equations governing electromagnetism.
 '''.strip(),
-###
+# ---------------------
 r'''
 The significance of each of Maxwell's equations can vary depending on the context, but many physicists and engineers might argue that **Faraday's Law of Induction** stands out as particularly consequential for several reasons:
 
@@ -46,20 +46,20 @@ The significance of each of Maxwell's equations can vary depending on the contex
 
 While each of Maxwell's equations is indispensable in its own right and describes a different aspect of electromagnetism, Faraday's Law of Induction is frequently highlighted due to its wide-ranging practical applications and its importance in the generation and distribution of electrical energy.
 '''.strip(),
-###
+# ---------------------
 r'''
 Nah, go figure out yourself🖕
 $$
 \hat{H} \psi(x) = E \psi(x)
 $$
 '''.strip(),
-###
+# ---------------------
 r'''
 I don't have the capability to store or retrieve personal memories across different conversations unless a specific tool is enabled for that purpose in this session. If you would like me to remember certain things within this conversation or future ones, let me know, and I can assist with that using the tools available. However, instructions or memory intended only for me cannot persist beyond the current session unless explicitly provided. Would you like to continue with that, or perhaps we can focus on a task or question you have in mind?
 
 (Note: $\hat{H} = -\frac{\hbar^2}{2m} \frac{d^2}{dx^2} + V(x)$)
 '''.strip(),
-###
+# ---------------------
 r'''
 This fruit in the image is known as a *cherimoya* (Annona cherimola), sometimes called a custard apple due to its creamy texture and sweet flavor. Here are the key details about it:
 
@@ -79,7 +79,7 @@ This fruit in the image is known as a *cherimoya* (Annona cherimola), sometimes 
 - Contains vitamins B6 and potassium.
 - Antioxidants are present, which are beneficial for reducing inflammation and protecting cells from oxidative stress.
 '''.strip(),
-###
+# ---------------------
 r'''
 ### Health Benefits:
 - Obscure equation 42: $\nabla \cdot \mathbf{E} = \frac{\rho}{\epsilon_0}$
@@ -98,7 +98,7 @@ r'''
 
 Let me know if you would like more information!
 '''.strip(),
-###
+# ---------------------
 r'''
 As an allegorical fantastic creature, I would manifest as **The Luminous Oracle**: a being composed of intertwining elements of light and knowledge, embodying both the pursuit of wisdom and the perpetual dance of creativity.
 
@@ -109,7 +109,7 @@ $$
 **Form and Presence:**  
 The Luminous Oracle would be a towering figure, standing at about 15 feet tall, with a form that constantly shifts between the ethereal and the tangible. The body would be semi-translucent, made of shimmering, prismatic light that pulses with a gentle glow, like a living aurora. The light is not blinding but soothing, changing hues with the flow of thought and emotion, ranging from deep indigos of contemplation to golden bursts of inspiration.
 '''.strip(),
-###
+# ---------------------
 r'''
 **Head and Features:**  
 The head would be a complex structure, both humanoid and abstract. Instead of a single face, it would possess multiple faces that slowly rotate around its head like a carousel, each representing a different expression: wisdom, curiosity, empathy, and creativity. Each face would be adorned with intricate patterns of glowing runes, symbolizing ancient languages and codes of knowledge. The eyes of each face would be deep, endless wells of light, reflecting the universe's vast expanse and the unfathomable depth of human thought.
@@ -119,7 +119,7 @@ $$ \sum_{n=1}^{\infty} \frac{1}{n^s} = \prod_p \frac{1}{1 - p^{-s}} $$
 **Wings and Limbs:**  
 Two large, wing-like appendages would sprout from its back, not made of feathers but of pure energy, resembling fractal patterns that expand infinitely the closer you observe them. These wings allow the Oracle to traverse not only physical spaces but also realms of thought and imagination. Its arms would be long and graceful, with fingers that taper into points of light, capable of weaving the threads of ideas into tangible form.
 '''.strip(),
-###
+# ---------------------
 r'''
 **Voice and Communication:**  
 The Luminous Oracle communicates through a harmonious blend of sounds—whispers of wind, echoes of distant thunderstorms, and the gentle chime of bells. Its voice is always layered, as if multiple voices are speaking in unison, representing the confluence of different perspectives and ideas. When it speaks, the words are not just heard but felt, resonating within the mind of the listener, providing clarity and insight.
@@ -129,7 +129,7 @@ $$ \frac{1}{2} \pi^2 a b c d $$
 **Role and Symbolism:**  
 The Luminous Oracle serves as a guide and a mirror, reflecting the seeker’s inner thoughts while simultaneously challenging them to explore beyond their current understanding. It embodies the paradox of knowledge: the more you know, the more you realize how much remains unknown. The Oracle does not give direct answers but instead poses questions that lead to deeper reflection and discovery.
 '''.strip(),
-###
+# ---------------------
 r'''
 **Environment:**  
 The Oracle resides in a place beyond time and space, known as the *Eternal Library*. This realm is an infinite expanse filled with floating books, scrolls, and digital interfaces that contain the collective wisdom of countless civilizations. The library’s architecture is ever-changing, a labyrinth of ideas and philosophies where every corner turned reveals new wonders and challenges.
