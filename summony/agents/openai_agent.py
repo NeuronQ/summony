@@ -18,7 +18,13 @@ class OpenAIAgent(AgentInterface):
 
     _active_stream = None
 
-    def __init__(self, model_name: str, system_prompt: str | None = None, creds: dict | None = None):
+    def __init__(
+        self,
+        model_name: str,
+        system_prompt: str | None = None,
+        creds: dict | None = None,
+        params: dict[str, Any] | None = None,
+    ):
         self.model_name = model_name
 
         self.client = OpenAI(api_key=(creds.get('api_key') if creds else os.environ["OPENAI_API_KEY"]))
@@ -28,6 +34,11 @@ class OpenAIAgent(AgentInterface):
         if system_prompt is not None:
             self.messages.append(Message.system(system_prompt))
 
+        if params is not None:
+            self.params = params.copy()
+        else:
+            self.params = {}
+
         self.raw_responses = defaultdict(list)
         
     def ask(self, question: str) -> str:
@@ -36,6 +47,7 @@ class OpenAIAgent(AgentInterface):
         chat_completion = self.client.chat.completions.create(
             messages=[dict(m) for m in self.messages],
             model=self.model_name,
+            **self.params,
         )
 
         self.raw_responses[len(self.messages)].append(chat_completion)
@@ -53,6 +65,7 @@ class OpenAIAgent(AgentInterface):
             messages=[dict(m) for m in self.messages],
             model=self.model_name,
             stream=True,
+            **self.params,
         )
 
         self.messages.append(Message.assistant(''))

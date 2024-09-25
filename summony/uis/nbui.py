@@ -8,13 +8,19 @@ from ..agents import AgentInterface, Message, get_default_agent_for_model
 
 class NBUI:
     agents: list[AgentInterface]
+    is_agent_active: list[bool]
 
     _agent_coros: list
 
-    def __init__(self,
+    def __init__(
+        self,
+        *,
         models: list[str] | None ,
         agents: list[AgentInterface] | None = None,
-        mode: Literal['ipywidgets.table', 'ipywidgets.grid'] = 'ipywidgets.grid'
+        system_prompt: str | None = None,
+        system_prompts: list[str] | None = None,
+        mode: Literal['ipywidgets.table', 'ipywidgets.grid'] = 'ipywidgets.grid',
+        **kwargs,
     ):
         assert (models is not None) or (agents is not None)
         if models is not None:
@@ -23,6 +29,33 @@ class NBUI:
         elif agents is not None:
             assert models is None
             self.agents = agents
+
+        self.is_agent_active = [True] * len(self.agents)
+
+        if system_prompt is not None:
+            assert system_prompts is None
+            for ag in self.agents:
+                ag.messages.append(Message.system(system_prompt))
+        elif system_prompts is not None:
+            assert system_prompt is None
+            for i, sp in enumerate(system_prompts):
+                if i < len(self.agents):
+                    self.agents[i].messages.append(Message.system(sp))
+                else:
+                    break
+
+        for k, v in kwargs.items():
+            if k.startswith('p_'):
+                if isinstance(v, (list, tuple)):
+                    for i, vv in enumerate(v):
+                        if i < len(self.agents):
+                            self.agents[i].params[k[2:]] = vv
+                        else:
+                            break
+                else:
+                    for ag in self.agents:
+                        ag.params[k[2:]] = v
+
         self.mode = mode
 
     async def __call__(self, q):
@@ -32,18 +65,27 @@ class NBUI:
         self._begin_show_reply_streams()
         self._agent_coros = [
             self._update_reply_stream_display(i, q)
-            for i in range(len(self.agents))]
+            for i in range(len(self.agents))
+            if self.is_agent_active[i]]
         await asyncio.gather(*self._agent_coros)
         self._agent_coros = []
         self._end_show_reply_streams()
         self._show_last_replies()
+
+    def set_active_agents(self, active_agent_idxs):
+        self.is_agent_active = [
+            (i in active_agent_idxs)
+            for i in range(len(self.agents))
+        ]
     
     async def _update_reply_stream_display(self, ag_idx, q):
         ag = self.agents[ag_idx]
         async for _ in ag.ask_async_stream(q):
             texts = [
                 ag.messages[-1].content.replace("\n", "<br>")
-                for ag in self.agents]
+                for i, ag in enumerate(self.agents)
+                if self.is_agent_active[i]
+            ]
             if self.mode == 'ipywidgets.table':
                 self._render_reply_streams_mode_ipwtable(texts)
             elif self.mode == 'ipywidgets.grid':
@@ -74,10 +116,17 @@ class NBUI:
     
     def _build_reply_streams_container_mode_ipwgridbox(self):
         message_heads = [
-            widgets.HTML(self._make_message_head_html(i))
+            widgets.HTML(
+                self._make_message_head_html(i)
+            )
             for i in range(len(self.agents))
+            if self.is_agent_active[i]
         ]
-        self._current_message_bodies = [widgets.HTML() for _ in self.agents]
+        self._current_message_bodies = [
+            widgets.HTML()
+            for i in range(len(self.agents))
+            if self.is_agent_active[i]
+        ]
         items = [
             *message_heads,
             *self._current_message_bodies,
@@ -85,7 +134,7 @@ class NBUI:
         return widgets.GridBox(
             items,
             layout=widgets.Layout(
-                grid_template_columns=f"repeat({len(self.agents)}, 1fr)",
+                grid_template_columns=f"repeat({sum(self.is_agent_active)}, 1fr)",
                 grid_gap="0 0.5rem",
             )
         )
@@ -138,7 +187,7 @@ class NBUI:
         cols = (
             f'''
             <td class="S6-ReplyBlock S6-ReplyBlock-{i}">
-                {self._make_message_head_html(i)}
+                {self._make_message_head_html(self._active_agent_idx_to_agent_idx(i))}
                 <div>{t}</div>
             </td>
             '''
@@ -149,6 +198,13 @@ class NBUI:
                 <tr>{"\n".join(cols)}</tr>
             </table>
             '''
+        
+    def _active_agent_idx_to_agent_idx(self, active_agent_idx):
+        return [
+            i
+            for i, is_active in enumerate(self.is_agent_active)
+            if is_active
+        ][active_agent_idx]
     
     def _render_reply_streams_mode_ipwgridbox(self, texts):
         for i, t in enumerate(texts):
@@ -159,10 +215,11 @@ class NBUI:
 
     def _show_last_replies(self):
         for i, ag in enumerate(self.agents):
-            display(HTML(self._make_avatar_html(i, 'Agent ' + ag.model_name)))
-            display(Markdown(ag.messages[-1].content.replace("\n", "\n\n")))
-            if i == len(self.agents) - 1:
-                display(HTML("<hr>"))
+            if self.is_agent_active[i]:
+                display(HTML(self._make_avatar_html(i, 'Agent ' + ag.model_name)))
+                display(Markdown(ag.messages[-1].content.replace("\n", "\n\n")))
+                if i == len(self.agents) - 1:
+                    display(HTML("<hr>"))
 
     def _make_message_head_html(self, agent_idx):
         return f'''

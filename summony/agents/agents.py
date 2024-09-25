@@ -32,6 +32,7 @@ class Message:
 class AgentInterface:
     messages: list[Message]
     model_name: str
+    params: dict[str, Any]
 
     raw_responses: dict[list]
 

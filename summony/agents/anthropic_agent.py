@@ -10,6 +10,7 @@ from .agents import AgentInterface, Message
 class AnthropicAgent(AgentInterface):
     messages: list[Message]
     model_name: str
+    params: dict[str, Any]
 
     raw_responses: dict[list]
 
@@ -35,7 +36,13 @@ class AnthropicAgent(AgentInterface):
         'claude-3-haiku': _CURRENT_HAIKU_MODEL,
     }
 
-    def __init__(self, model_name: str, system_prompt: str | None = None, creds: dict | None = None):
+    def __init__(
+            self,
+            model_name: str,
+            system_prompt: str | None = None,
+            creds: dict | None = None,
+            params: dict[str, Any] | None = None,
+        ):
         self.provided_model_name = model_name
         self.model_name = self._MODEL_SHORTCUTS.get(model_name, model_name)
 
@@ -46,16 +53,18 @@ class AnthropicAgent(AgentInterface):
         if system_prompt is not None:
             self.messages.append(Message.system(system_prompt))
 
+        if params is not None:
+            self.params = params.copy()
+        else:
+            self.params = {}
+
         self.raw_responses = defaultdict(list)
         
     def ask(self, question: str) -> str:
         self.messages.append(Message.user(question))
 
         client_message = self.client.messages.create(
-            messages=[dict(m) for m in self.messages],
-            model=self.model_name,
-            max_tokens=1024,
-        )
+            **self._make_message_creat_args())
 
         self.raw_responses[len(self.messages)].append(client_message)
 
@@ -68,14 +77,12 @@ class AnthropicAgent(AgentInterface):
     async def ask_async_stream(self, question: str) -> AsyncIterator[str]:  # TODO
         self.messages.append(Message.user(question))
 
+        self.messages.append(Message.assistant(''))
+
         self._active_stream = await self.async_client.messages.create(
-            messages=[dict(m) for m in self.messages],
-            model=self.model_name,
-            max_tokens=1024,
+            **self._make_message_creat_args(),
             stream=True,
         )
-
-        self.messages.append(Message.assistant(''))
 
         async for event in self._active_stream:
             self.raw_responses[len(self.messages) - 1].append(event)
@@ -91,3 +98,15 @@ class AnthropicAgent(AgentInterface):
             if chunk_content:
                 self.messages[-1].content += chunk_content
                 yield chunk_content
+
+    def _make_message_creat_args(self):
+        message_create_args = dict(
+            messages=[dict(m) for m in self.messages],
+            model=self.model_name,
+            max_tokens=1024,
+            **self.params,
+        )
+        if self.messages[0].role == 'system':
+            message_create_args['messages'] = message_create_args['messages'][1:]
+            message_create_args['system'] = self.messages[0].content
+        return message_create_args
