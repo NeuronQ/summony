@@ -58,10 +58,10 @@ class NBUI:
 
         self.mode = mode
 
-    async def __call__(self, q, prefill=None):
+    async def __call__(self, q=None, prefill=None):
         await self.ask(q, prefill)
 
-    async def ask(self, q, prefill=None):
+    async def ask(self, q=None, prefill=None):
         self._begin_show_reply_streams()
         self._agent_coros = [
             self._update_reply_stream_display(i, q, prefill)
@@ -80,9 +80,18 @@ class NBUI:
 
     async def _update_reply_stream_display(self, ag_idx, q, prefill):
         ag = self.agents[ag_idx]
-        async for _ in ag.ask_async_stream(q, prefill):
+        if q is not None:
+            stream = ag.ask_async_stream(q, prefill)
+        else:
+            assert prefill is None
+            stream = ag.reask_async_stream()
+        async for _ in stream:
             texts = [
-                ag.messages[-1].content.replace("\n", "<br>")
+                (
+                    ag.messages[-1].content
+                    if not isinstance(ag.messages[-1], (list, tuple))
+                    else ag.messages[-1][-1].content
+                ).replace("\n", "<br>")
                 for i, ag in enumerate(self.agents)
                 if self.is_agent_active[i]
             ]
@@ -253,7 +262,12 @@ class NBUI:
         for i, ag in enumerate(self.agents):
             if self.is_agent_active[i]:
                 display(HTML(self._make_avatar_html(i, "Agent " + ag.model_name)))
-                display(Markdown(ag.messages[-1].content.replace("\n", "\n\n")))
+                last_msg = (
+                    ag.messages[-1]
+                    if not isinstance(ag.messages[-1], (list, tuple))
+                    else ag.messages[-1][-1]
+                )
+                display(Markdown(last_msg.content.replace("\n", "\n\n")))
                 if i == len(self.agents) - 1:
                     display(HTML("<hr>"))
 

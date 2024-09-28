@@ -10,6 +10,7 @@ from dataclasses_json import dataclass_json
 class Message:
     role: Literal["system", "user", "assistant"]
     content: str
+    chosen: bool | None = None
 
     def __iter__(self):
         # converting to dict with dict(my_msg) uses this (and .to_dict is added by @dataclass_json)
@@ -48,7 +49,16 @@ class AgentInterface:
     def ask(self, question: str, prefill: str | None = None, **kwargs) -> str: ...
 
     @abstractmethod
+    def reask(self, question: str, **kwargs) -> str: ...
+
+    @abstractmethod
     async def ask_async_stream(
+        self, question: str, prefill: str | None = None, **kwargs
+    ) -> AsyncIterator[str]:
+        yield ""
+
+    @abstractmethod
+    async def reask_async_stream(
         self, question: str, prefill: str | None = None, **kwargs
     ) -> AsyncIterator[str]:
         yield ""

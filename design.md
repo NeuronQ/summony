@@ -27,10 +27,10 @@ c.set_params(...)#
 c.set_params(0, ...)#
 
 ### reask
-c() # aka c.reask()
-c.to(agent_idx)
+c() # aka c.reask() -> ag.reask()
+c(agent_idx) # aka c.reask(aidx) -> ag.reask()
 ### ask single agent
-c.to(agent_idx, 'why is...') # aka c.ask_single_agent()
+c.to(agent_idx, 'why is...') # aka c.ask()
 
 message = {'id': '', 'role': '', 'content': '',
            # optional:

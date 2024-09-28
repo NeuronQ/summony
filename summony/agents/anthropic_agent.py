@@ -9,6 +9,11 @@ from ..utils import separate_prefixed
 
 
 class AnthropicAgent(AgentInterface):
+    # static
+    DEFAULT_PARAMS: dict[str, Any] = {
+        "max_tokens": 1024,
+    }
+
     messages: list[Message]
     model_name: str
     params: dict[str, Any]
@@ -61,7 +66,7 @@ class AnthropicAgent(AgentInterface):
         if params is not None:
             self.params = params.copy()
         else:
-            self.params = {}
+            self.params = self.DEFAULT_PARAMS.copy()
 
         self.raw_responses = defaultdict(list)
 
@@ -91,6 +96,31 @@ class AnthropicAgent(AgentInterface):
 
         return content
 
+    def reask(self, **kwargs) -> str:
+        params_from_kwarg, left_kwargs = separate_prefixed(kwargs, "p_")
+        if left_kwargs:
+            raise ValueError(
+                f"ERROR in AnthropicAgent.ask: unexpected kwargs: {list(left_kwargs.keys())}"
+            )
+
+        client_message = self.client.messages.create(
+            **self._make_message_creat_args(
+                {**self.params, **params_from_kwarg},
+                skip_last_message=True,
+            )
+        )
+
+        self.raw_responses[len(self.messages)].extend(["<reask>", client_message])
+
+        content = client_message.content[0].text
+        message = Message(role=client_message.role, content=content)
+
+        if not isinstance(self.messages[-1], (list, tuple)):
+            self.messages[-1] = [self.messages[-1]]
+        self.messages[-1].append(message)
+
+        return content
+
     async def ask_async_stream(
         self, question: str, prefill: str | None = None, **kwargs
     ) -> AsyncIterator[str]:
@@ -105,12 +135,12 @@ class AnthropicAgent(AgentInterface):
         if prefill is not None:
             self.messages.append(Message.assistant(prefill))
 
-        self.messages.append(Message.assistant(""))
-
         self._active_stream = await self.async_client.messages.create(
             **self._make_message_creat_args({**self.params, **params_from_kwarg}),
             stream=True,
         )
+
+        self.messages.append(Message.assistant(""))
 
         async for event in self._active_stream:
             self.raw_responses[len(self.messages) - 1].append(event)
@@ -127,14 +157,64 @@ class AnthropicAgent(AgentInterface):
                 self.messages[-1].content += chunk_content
                 yield chunk_content
 
-    def _make_message_creat_args(self, params):
+    async def reask_async_stream(self, **kwargs) -> AsyncIterator[str]:
+        params_from_kwarg, left_kwargs = separate_prefixed(kwargs, "p_")
+        if left_kwargs:
+            raise ValueError(
+                f"ERROR in AnthropicAgent.ask: unexpected kwargs: {list(left_kwargs.keys())}"
+            )
+
+        self._active_stream = await self.async_client.messages.create(
+            **self._make_message_creat_args(
+                {**self.params, **params_from_kwarg},
+                skip_last_message=True,
+            ),
+            stream=True,
+        )
+
+        message = Message.assistant("")
+        if not isinstance(self.messages[-1], (list, tuple)):
+            self.messages[-1] = [self.messages[-1]]
+        self.messages[-1].append(message)
+
+        self.raw_responses[len(self.messages) - 1].append("<reask>")
+
+        async for event in self._active_stream:
+            self.raw_responses[len(self.messages) - 1].append(event)
+            chunk_content = None
+            try:
+                if event.type == "content_block_start":
+                    chunk_content = event.content_block.text
+                elif event.type == "content_block_delta":
+                    chunk_content = event.delta.text
+            except:
+                # TODO
+                pass
+            if chunk_content:
+                message.content += chunk_content
+                yield chunk_content
+
+    def _make_message_creat_args(self, params, skip_last_message=False):
+        messages = self.messages[:-1] if skip_last_message else self.messages
         message_create_args = dict(
-            messages=[dict(m) for m in self.messages],
+            messages=self._make_agent_messages(messages),
             model=self.model_name,
-            max_tokens=1024,
+            # max_tokens=1024,
             **params,
         )
         if self.messages[0].role == "system":
             message_create_args["messages"] = message_create_args["messages"][1:]
             message_create_args["system"] = self.messages[0].content
         return message_create_args
+
+    def _make_agent_messages(self, messages: list[Message]) -> None:
+        out = []
+        for i, m in enumerate(messages):
+            if not isinstance(m, (list, tuple)):
+                to_append = m
+            else:
+                assert len(m) > 0
+                chosen = [alt_m for alt_m in m if alt_m.chosen]
+                to_append = chosen[0] if chosen else m[-1]
+            out.append({"role": to_append.role, "content": to_append.content})
+        return out
