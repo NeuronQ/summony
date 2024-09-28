@@ -1,3 +1,4 @@
+```py
 class ConnectorInterface:
     ...
 
@@ -19,16 +20,17 @@ c.set_active_agents([agent_idx])#
 
 #prams on ask/call
 
-c('why is...')#
+c('why is...') # aka c.ask()
 c('explain me...', prefill='I will outline the steps to take first: ')#
 
 c.set_params(...)#
 c.set_params(0, ...)#
 
-c.alt('...')
-c.alt()
-
-c.select_alt(alt_idx)
+### reask
+c() # aka c.reask()
+c.to(agent_idx)
+### ask single agent
+c.to(agent_idx, 'why is...') # aka c.ask_single_agent()
 
 message = {'id': '', 'role': '', 'content': '',
            # optional:
@@ -48,3 +50,4 @@ a_conversations/
     files_received/
 
 '''
+```

@@ -28,8 +28,12 @@ class OpenAIAgent(AgentInterface):
     ):
         self.model_name = model_name
 
-        self.client = OpenAI(api_key=(creds.get('api_key') if creds else os.environ["OPENAI_API_KEY"]))
-        self.async_client = AsyncOpenAI(api_key=(creds.get('api_key') if creds else os.environ["OPENAI_API_KEY"]))
+        self.client = OpenAI(
+            api_key=(creds.get("api_key") if creds else os.environ["OPENAI_API_KEY"])
+        )
+        self.async_client = AsyncOpenAI(
+            api_key=(creds.get("api_key") if creds else os.environ["OPENAI_API_KEY"])
+        )
 
         self.messages = []
         if system_prompt is not None:
@@ -41,11 +45,13 @@ class OpenAIAgent(AgentInterface):
             self.params = {}
 
         self.raw_responses = defaultdict(list)
-        
+
     def ask(self, question: str, prefill: str | None = None, **kwargs) -> str:
-        params_from_kwarg, left_kwargs = separate_prefixed(kwargs, 'p_')
+        params_from_kwarg, left_kwargs = separate_prefixed(kwargs, "p_")
         if left_kwargs:
-            raise ValueError(f"ERROR in OpenAIAgent.ask: unexpected kwargs: {list(left_kwargs.keys())}")
+            raise ValueError(
+                f"ERROR in OpenAIAgent.ask: unexpected kwargs: {list(left_kwargs.keys())}"
+            )
 
         self.messages.append(Message.user(question))
 
@@ -66,10 +72,14 @@ class OpenAIAgent(AgentInterface):
 
         return client_message.content
 
-    async def ask_async_stream(self, question: str, prefill: str | None = None, **kwargs) -> AsyncIterator[str]:
-        params_from_kwarg, left_kwargs = separate_prefixed(kwargs, 'p_')
+    async def ask_async_stream(
+        self, question: str, prefill: str | None = None, **kwargs
+    ) -> AsyncIterator[str]:
+        params_from_kwarg, left_kwargs = separate_prefixed(kwargs, "p_")
         if left_kwargs:
-            raise ValueError(f"ERROR in OpenAIAgent.ask: unexpected kwargs: {list(left_kwargs.keys())}")
+            raise ValueError(
+                f"ERROR in OpenAIAgent.ask: unexpected kwargs: {list(left_kwargs.keys())}"
+            )
 
         self.messages.append(Message.user(question))
 
@@ -83,7 +93,7 @@ class OpenAIAgent(AgentInterface):
             **{**self.params, **params_from_kwarg},
         )
 
-        self.messages.append(Message.assistant(''))
+        self.messages.append(Message.assistant(""))
 
         async for chunk in self._active_stream:
             self.raw_responses[len(self.messages) - 1].append(chunk)

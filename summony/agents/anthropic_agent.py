@@ -23,32 +23,36 @@ class AnthropicAgent(AgentInterface):
 
     _active_stream = None
 
-    _CURRENT_SONNET_MODEL = 'claude-3-5-sonnet-20240620'
-    _CURRENT_OPUS_MODEL = 'claude-3-opus-20240229'
-    _CURRENT_HAIKU_MODEL = 'claude-3-haiku-20240307'
+    _CURRENT_SONNET_MODEL = "claude-3-5-sonnet-20240620"
+    _CURRENT_OPUS_MODEL = "claude-3-opus-20240229"
+    _CURRENT_HAIKU_MODEL = "claude-3-haiku-20240307"
     _MODEL_SHORTCUTS = {
-        'claude': _CURRENT_SONNET_MODEL,
-        'claude-sonnet': _CURRENT_SONNET_MODEL,
-        'claude-3-5-sonnet': _CURRENT_SONNET_MODEL,
-        'claude-3-sonnet': 'claude-3-sonnet-20240229',
-        'claude-opus': _CURRENT_OPUS_MODEL,
-        'claude-3-opus': 'claude-3-opus-20240229',
-        'claude-haiku': _CURRENT_HAIKU_MODEL,
-        'claude-3-haiku': _CURRENT_HAIKU_MODEL,
+        "claude": _CURRENT_SONNET_MODEL,
+        "claude-sonnet": _CURRENT_SONNET_MODEL,
+        "claude-3-5-sonnet": _CURRENT_SONNET_MODEL,
+        "claude-3-sonnet": "claude-3-sonnet-20240229",
+        "claude-opus": _CURRENT_OPUS_MODEL,
+        "claude-3-opus": "claude-3-opus-20240229",
+        "claude-haiku": _CURRENT_HAIKU_MODEL,
+        "claude-3-haiku": _CURRENT_HAIKU_MODEL,
     }
 
     def __init__(
-            self,
-            model_name: str,
-            system_prompt: str | None = None,
-            creds: dict | None = None,
-            params: dict[str, Any] | None = None,
-        ):
+        self,
+        model_name: str,
+        system_prompt: str | None = None,
+        creds: dict | None = None,
+        params: dict[str, Any] | None = None,
+    ):
         self.provided_model_name = model_name
         self.model_name = self._MODEL_SHORTCUTS.get(model_name, model_name)
 
-        self.client = Anthropic(api_key=(creds.get('api_key') if creds else os.environ["ANTHROPIC_API_KEY"]))
-        self.async_client = AsyncAnthropic(api_key=(creds.get('api_key') if creds else os.environ["ANTHROPIC_API_KEY"]))
+        self.client = Anthropic(
+            api_key=(creds.get("api_key") if creds else os.environ["ANTHROPIC_API_KEY"])
+        )
+        self.async_client = AsyncAnthropic(
+            api_key=(creds.get("api_key") if creds else os.environ["ANTHROPIC_API_KEY"])
+        )
 
         self.messages = []
         if system_prompt is not None:
@@ -60,11 +64,13 @@ class AnthropicAgent(AgentInterface):
             self.params = {}
 
         self.raw_responses = defaultdict(list)
-        
+
     def ask(self, question: str, prefill: str | None = None, **kwargs) -> str:
-        params_from_kwarg, left_kwargs = separate_prefixed(kwargs, 'p_')
+        params_from_kwarg, left_kwargs = separate_prefixed(kwargs, "p_")
         if left_kwargs:
-            raise ValueError(f"ERROR in AnthropicAgent.ask: unexpected kwargs: {list(left_kwargs.keys())}")
+            raise ValueError(
+                f"ERROR in AnthropicAgent.ask: unexpected kwargs: {list(left_kwargs.keys())}"
+            )
 
         self.messages.append(Message.user(question))
 
@@ -85,22 +91,24 @@ class AnthropicAgent(AgentInterface):
 
         return content
 
-    async def ask_async_stream(self, question: str, prefill: str | None = None, **kwargs) -> AsyncIterator[str]:
-        params_from_kwarg, left_kwargs = separate_prefixed(kwargs, 'p_')
+    async def ask_async_stream(
+        self, question: str, prefill: str | None = None, **kwargs
+    ) -> AsyncIterator[str]:
+        params_from_kwarg, left_kwargs = separate_prefixed(kwargs, "p_")
         if left_kwargs:
-            raise ValueError(f"ERROR in AnthropicAgent.ask: unexpected kwargs: {list(left_kwargs.keys())}")
+            raise ValueError(
+                f"ERROR in AnthropicAgent.ask: unexpected kwargs: {list(left_kwargs.keys())}"
+            )
 
         self.messages.append(Message.user(question))
 
         if prefill is not None:
             self.messages.append(Message.assistant(prefill))
 
-        self.messages.append(Message.assistant(''))
+        self.messages.append(Message.assistant(""))
 
         self._active_stream = await self.async_client.messages.create(
-            **self._make_message_creat_args(
-                {**self.params, **params_from_kwarg}
-            ),
+            **self._make_message_creat_args({**self.params, **params_from_kwarg}),
             stream=True,
         )
 
@@ -108,9 +116,9 @@ class AnthropicAgent(AgentInterface):
             self.raw_responses[len(self.messages) - 1].append(event)
             chunk_content = None
             try:
-                if event.type == 'content_block_start':
+                if event.type == "content_block_start":
                     chunk_content = event.content_block.text
-                elif event.type == 'content_block_delta':
+                elif event.type == "content_block_delta":
                     chunk_content = event.delta.text
             except:
                 # TODO
@@ -126,7 +134,7 @@ class AnthropicAgent(AgentInterface):
             max_tokens=1024,
             **params,
         )
-        if self.messages[0].role == 'system':
-            message_create_args['messages'] = message_create_args['messages'][1:]
-            message_create_args['system'] = self.messages[0].content
+        if self.messages[0].role == "system":
+            message_create_args["messages"] = message_create_args["messages"][1:]
+            message_create_args["system"] = self.messages[0].content
         return message_create_args

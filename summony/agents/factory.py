@@ -3,6 +3,7 @@ from .anthropic_agent import AnthropicAgent
 from .openai_agent import OpenAIAgent
 from .dummy_agent import DummyAgent
 
+
 def get_default_agent_for_model(model: str) -> AgentInterface:
     if model.startswith("dummy"):
         return DummyAgent(model_name=model)
