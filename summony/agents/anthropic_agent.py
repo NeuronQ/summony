@@ -5,6 +5,7 @@ from typing import Any, AsyncIterator, Callable, Coroutine, Literal, Self
 from anthropic import Anthropic, AsyncAnthropic
 
 from .agents import AgentInterface, Message
+from ..utils import separate_prefixed
 
 
 class AnthropicAgent(AgentInterface):
@@ -60,11 +61,21 @@ class AnthropicAgent(AgentInterface):
 
         self.raw_responses = defaultdict(list)
         
-    def ask(self, question: str) -> str:
+    def ask(self, question: str, prefill: str | None = None, **kwargs) -> str:
+        params_from_kwarg, left_kwargs = separate_prefixed(kwargs, 'p_')
+        if left_kwargs:
+            raise ValueError(f"ERROR in AnthropicAgent.ask: unexpected kwargs: {list(left_kwargs.keys())}")
+
         self.messages.append(Message.user(question))
 
+        if prefill is not None:
+            self.messages.append(Message.assistant(prefill))
+
         client_message = self.client.messages.create(
-            **self._make_message_creat_args())
+            **self._make_message_creat_args(
+                {**self.params, **params_from_kwarg},
+            )
+        )
 
         self.raw_responses[len(self.messages)].append(client_message)
 
@@ -74,13 +85,22 @@ class AnthropicAgent(AgentInterface):
 
         return content
 
-    async def ask_async_stream(self, question: str) -> AsyncIterator[str]:  # TODO
+    async def ask_async_stream(self, question: str, prefill: str | None = None, **kwargs) -> AsyncIterator[str]:
+        params_from_kwarg, left_kwargs = separate_prefixed(kwargs, 'p_')
+        if left_kwargs:
+            raise ValueError(f"ERROR in AnthropicAgent.ask: unexpected kwargs: {list(left_kwargs.keys())}")
+
         self.messages.append(Message.user(question))
+
+        if prefill is not None:
+            self.messages.append(Message.assistant(prefill))
 
         self.messages.append(Message.assistant(''))
 
         self._active_stream = await self.async_client.messages.create(
-            **self._make_message_creat_args(),
+            **self._make_message_creat_args(
+                {**self.params, **params_from_kwarg}
+            ),
             stream=True,
         )
 
@@ -99,12 +119,12 @@ class AnthropicAgent(AgentInterface):
                 self.messages[-1].content += chunk_content
                 yield chunk_content
 
-    def _make_message_creat_args(self):
+    def _make_message_creat_args(self, params):
         message_create_args = dict(
             messages=[dict(m) for m in self.messages],
             model=self.model_name,
             max_tokens=1024,
-            **self.params,
+            **params,
         )
         if self.messages[0].role == 'system':
             message_create_args['messages'] = message_create_args['messages'][1:]

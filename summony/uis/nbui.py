@@ -58,13 +58,13 @@ class NBUI:
 
         self.mode = mode
 
-    async def __call__(self, q):
-        await self.ask(q)
+    async def __call__(self, q, prefill = None):
+        await self.ask(q, prefill)
 
-    async def ask(self, q):
+    async def ask(self, q, prefill = None):
         self._begin_show_reply_streams()
         self._agent_coros = [
-            self._update_reply_stream_display(i, q)
+            self._update_reply_stream_display(i, q, prefill)
             for i in range(len(self.agents))
             if self.is_agent_active[i]]
         await asyncio.gather(*self._agent_coros)
@@ -78,9 +78,9 @@ class NBUI:
             for i in range(len(self.agents))
         ]
     
-    async def _update_reply_stream_display(self, ag_idx, q):
+    async def _update_reply_stream_display(self, ag_idx, q, prefill):
         ag = self.agents[ag_idx]
-        async for _ in ag.ask_async_stream(q):
+        async for _ in ag.ask_async_stream(q, prefill):
             texts = [
                 ag.messages[-1].content.replace("\n", "<br>")
                 for i, ag in enumerate(self.agents)
@@ -102,6 +102,41 @@ class NBUI:
             selected_index=0,  # to expand
         )
         display(self._current_reply_streams_accordion)
+    
+    def set_params(self, *args, **kwargs):
+        if len(args) == 0:
+            for k, v in kwargs.items():
+                if isinstance(v, (list, tuple)):
+                    for i, vv in enumerate(v):
+                        if i < len(self.agents):
+                            self.agents[i].params[k] = vv
+                        else:
+                            break
+                else:
+                    for ag in self.agents:
+                        ag.params[k] = v
+        elif len(args) == 1:
+            ag_idx = args[0]
+            self.agents[ag_idx].params.update(kwargs)
+        else:
+            raise ValueError(f"ERROR in NBUI.set_params: only one positional argument expected (the agent indec)")
+
+    def unset_params(self, *args):
+        ag_idx = None
+        if len(args) > 1 and type(args[0]) == int:
+            ag_idx = args[0]
+            args = args[1:]
+        if ag_idx is None:
+            for k in args:
+                for ag in self.agents:
+                    if k in ag.params:
+                        del ag.params[k]
+        else:
+            ag = self.agents[ag_idx]
+            for k in args:
+                if k in ag.params:
+                    del ag.params[k]
+
 
     def _build_reply_streams_container(self):
         if self.mode == 'ipywidgets.table':
@@ -230,4 +265,5 @@ class NBUI:
 
     def _make_avatar_html(self, idx, name):
         return f'<span class="S6-Avatar S6-AgentIdx-{idx}">🤖 {name}</span>'
+    
     

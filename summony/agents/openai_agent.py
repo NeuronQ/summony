@@ -5,6 +5,7 @@ from typing import Any, AsyncIterator, Callable, Coroutine, Literal, Self
 from openai import OpenAI, AsyncOpenAI
 
 from .agents import AgentInterface, Message
+from ..utils import separate_prefixed
 
 
 class OpenAIAgent(AgentInterface):
@@ -41,13 +42,20 @@ class OpenAIAgent(AgentInterface):
 
         self.raw_responses = defaultdict(list)
         
-    def ask(self, question: str) -> str:
+    def ask(self, question: str, prefill: str | None = None, **kwargs) -> str:
+        params_from_kwarg, left_kwargs = separate_prefixed(kwargs, 'p_')
+        if left_kwargs:
+            raise ValueError(f"ERROR in OpenAIAgent.ask: unexpected kwargs: {list(left_kwargs.keys())}")
+
         self.messages.append(Message.user(question))
+
+        if prefill is not None:
+            self.messages.append(Message.assistant(prefill))
 
         chat_completion = self.client.chat.completions.create(
             messages=[dict(m) for m in self.messages],
             model=self.model_name,
-            **self.params,
+            **{**self.params, **params_from_kwarg},
         )
 
         self.raw_responses[len(self.messages)].append(chat_completion)
@@ -58,14 +66,21 @@ class OpenAIAgent(AgentInterface):
 
         return client_message.content
 
-    async def ask_async_stream(self, question: str) -> AsyncIterator[str]:
+    async def ask_async_stream(self, question: str, prefill: str | None = None, **kwargs) -> AsyncIterator[str]:
+        params_from_kwarg, left_kwargs = separate_prefixed(kwargs, 'p_')
+        if left_kwargs:
+            raise ValueError(f"ERROR in OpenAIAgent.ask: unexpected kwargs: {list(left_kwargs.keys())}")
+
         self.messages.append(Message.user(question))
+
+        if prefill is not None:
+            self.messages.append(Message.assistant(prefill))
 
         self._active_stream = await self.async_client.chat.completions.create(
             messages=[dict(m) for m in self.messages],
             model=self.model_name,
             stream=True,
-            **self.params,
+            **{**self.params, **params_from_kwarg},
         )
 
         self.messages.append(Message.assistant(''))

@@ -17,10 +17,13 @@ c = NBUI(system_prompt='...', p_temperature=1.5)#
 
 c.set_active_agents([agent_idx])#
 
-c('why is...')#
-c('explain me...', prefill='I will outline the steps to take first: ')# TODO next
+#prams on ask/call
 
-c.set_params(...)
+c('why is...')#
+c('explain me...', prefill='I will outline the steps to take first: ')#
+
+c.set_params(...)#
+c.set_params(0, ...)#
 
 c.alt('...')
 c.alt()
