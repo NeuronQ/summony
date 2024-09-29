@@ -9,8 +9,10 @@ from ..utils import separate_prefixed
 
 
 class OpenAIAgent(AgentInterface):
+    name: str
     messages: list[Message]
     model_name: str
+    params: dict[str, Any]
 
     raw_responses: dict[list]
 
@@ -27,11 +29,14 @@ class OpenAIAgent(AgentInterface):
     def __init__(
         self,
         model_name: str,
+        name: str | None = None,
         system_prompt: str | None = None,
         creds: dict | None = None,
         params: dict[str, Any] | None = None,
     ):
         self.model_name = model_name
+
+        self.name = name if name is not None else model_name
 
         self.client = OpenAI(
             api_key=(creds.get("api_key") if creds else os.environ["OPENAI_API_KEY"])

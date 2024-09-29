@@ -39,6 +39,8 @@ c(agent_idx) # aka c.reask(aidx) -> ag.reask()
 ### ask single agent
 c.to(agent_idx, 'why is...') # aka c.ask()
 
+# IMPORTANT: see actual code for latest structure
+
 message = {'id': '', 'role': '', 'content': '',
            # optional:
            'settings_idx': '', 'agent_id': ''}
@@ -48,6 +50,24 @@ converation = {'messages': [{}, {}, [{}, ...], ...],
                'agents': [{}, ...],
                # optional:
                'active_agents_ids': [...]}
+'''
+[
+    Message.user,
+    <OPTIONAL-PREFILL> Message.assistant </OPTIONAL-PREFILL>,
+    {
+        group_type: "replies",
+        content: {
+            <agent_idx>:
+                | {group_type: "variants",
+                   content: [Message.assistant, ...]},
+                | {group_type: "thread",
+                   content: [Message.assistant, Message.user, Message.assistant]},
+            ...
+        }
+    },
+    ...
+]
+'''
 
 '''
 a_conversations/

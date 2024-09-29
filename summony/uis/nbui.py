@@ -34,8 +34,9 @@ class NBUI:
 
         if system_prompt is not None:
             assert system_prompts is None
+            msg_system_prompt = Message.system(system_prompt)
             for ag in self.agents:
-                ag.messages.append(Message.system(system_prompt))
+                ag.messages.append(msg_system_prompt)
         elif system_prompts is not None:
             assert system_prompt is None
             for i, sp in enumerate(system_prompts):
@@ -107,6 +108,7 @@ class NBUI:
         else:
             assert prefill is None
             stream = ag.reask_async_stream()
+
         async for _ in stream:
             texts = [
                 (

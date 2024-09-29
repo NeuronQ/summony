@@ -9,6 +9,7 @@ from ..utils import separate_prefixed
 
 
 class AnthropicAgent(AgentInterface):
+    name: str
     messages: list[Message]
     model_name: str
     params: dict[str, Any]
@@ -44,12 +45,15 @@ class AnthropicAgent(AgentInterface):
     def __init__(
         self,
         model_name: str,
+        name: str | None = None,
         system_prompt: str | None = None,
         creds: dict | None = None,
         params: dict[str, Any] | None = None,
     ):
         self.provided_model_name = model_name
         self.model_name = self._MODEL_SHORTCUTS.get(model_name, model_name)
+
+        self.name = name if name is not None else model_name
 
         self.client = Anthropic(
             api_key=(creds.get("api_key") if creds else os.environ["ANTHROPIC_API_KEY"])
