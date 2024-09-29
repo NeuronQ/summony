@@ -58,19 +58,41 @@ class NBUI:
 
         self.mode = mode
 
-    async def __call__(self, q=None, prefill=None):
-        await self.ask(q, prefill)
+    async def __call__(
+        self,
+        q: str | None = None,
+        prefill: str | None = None,
+        to: list[int] | None = None,
+    ):
+        await self.ask(q, prefill, to)
 
-    async def ask(self, q=None, prefill=None):
-        self._begin_show_reply_streams()
-        self._agent_coros = [
-            self._update_reply_stream_display(i, q, prefill)
-            for i in range(len(self.agents))
-            if self.is_agent_active[i]
-        ]
-        await asyncio.gather(*self._agent_coros)
+    async def ask(
+        self,
+        q: str | None = None,
+        prefill: str | None = None,
+        to: list[int] | None = None,
+    ):
+        self._begin_show_reply_streams(to)
+
         self._agent_coros = []
-        self._end_show_reply_streams()
+        for i in range(len(self.agents)):
+            if self.is_agent_active[i]:
+                if to is None or i in to:
+                    self._agent_coros.append(
+                        self._update_reply_stream_display(i, q, prefill, to)
+                    )
+            else:
+                if to is not None and i in to:
+                    raise ValueError(
+                        f"ERROR in NBUI.ask: IGNORING agent {i} it's not active, but was requested to reply"
+                    )
+
+        await asyncio.gather(*self._agent_coros)
+
+        self._agent_coros = []
+
+        # self._end_show_reply_streams(to)  ###
+
         self._show_last_replies()
 
     def set_active_agents(self, active_agent_idxs):
@@ -78,7 +100,7 @@ class NBUI:
             (i in active_agent_idxs) for i in range(len(self.agents))
         ]
 
-    async def _update_reply_stream_display(self, ag_idx, q, prefill):
+    async def _update_reply_stream_display(self, ag_idx, q, prefill, to):
         ag = self.agents[ag_idx]
         if q is not None:
             stream = ag.ask_async_stream(q, prefill)
@@ -93,7 +115,7 @@ class NBUI:
                     else ag.messages[-1][-1].content
                 ).replace("\n", "<br>")
                 for i, ag in enumerate(self.agents)
-                if self.is_agent_active[i]
+                if self.is_agent_active[i] and (to is None or i in to)
             ]
             if self.mode == "ipywidgets.table":
                 self._render_reply_streams_mode_ipwtable(texts)
@@ -104,9 +126,9 @@ class NBUI:
                     f"ERROR in NBUI._update_reply_stream_display: Unknown mode: {self.mode}"
                 )
 
-    def _begin_show_reply_streams(self):
+    def _begin_show_reply_streams(self, to):
         self._show_reply_stream_style()
-        self._current_reply_streams_container = self._build_reply_streams_container()
+        self._current_reply_streams_container = self._build_reply_streams_container(to)
         self._current_reply_streams_accordion = widgets.Accordion(
             children=[self._current_reply_streams_container],
             titles=["raw replies"],
@@ -150,11 +172,11 @@ class NBUI:
                 if k in ag.params:
                     del ag.params[k]
 
-    def _build_reply_streams_container(self):
+    def _build_reply_streams_container(self, to):
         if self.mode == "ipywidgets.table":
-            return self._build_reply_streams_container_mode_ipwtable()
+            return self._build_reply_streams_container_mode_ipwtable(to)
         elif self.mode == "ipywidgets.grid":
-            return self._build_reply_streams_container_mode_ipwgridbox()
+            return self._build_reply_streams_container_mode_ipwgridbox(to)
         else:
             raise ValueError(
                 f"ERROR in NBUI._build_reply_streams_container: Unknown mode: {self.mode}"
@@ -163,14 +185,21 @@ class NBUI:
     def _build_reply_streams_container_mode_ipwtable(self):
         return widgets.HTML()
 
-    def _build_reply_streams_container_mode_ipwgridbox(self):
+    def _build_reply_streams_container_mode_ipwgridbox(self, to):
+        dispalyed_agents_count = sum(
+            1
+            for i in range(len(self.agents))
+            if (self.is_agent_active[i] and (to is None or i in to))
+        )
         message_heads = [
             widgets.HTML(self._make_message_head_html(i))
             for i in range(len(self.agents))
-            if self.is_agent_active[i]
+            if self.is_agent_active[i] and (to is None or i in to)
         ]
         self._current_message_bodies = [
-            widgets.HTML() for i in range(len(self.agents)) if self.is_agent_active[i]
+            widgets.HTML()
+            for i in range(len(self.agents))
+            if self.is_agent_active[i] and (to is None or i in to)
         ]
         items = [
             *message_heads,
@@ -179,7 +208,7 @@ class NBUI:
         return widgets.GridBox(
             items,
             layout=widgets.Layout(
-                grid_template_columns=f"repeat({sum(self.is_agent_active)}, 1fr)",
+                grid_template_columns=f"repeat({dispalyed_agents_count}, 1fr)",
                 grid_gap="0 0.5rem",
             ),
         )
@@ -255,7 +284,7 @@ class NBUI:
                 i
             ].value = f'<div class="S6-ReplyBlock S6-ReplyBlock-{i}">{t}</div>'
 
-    def _end_show_reply_streams(self):
+    def _end_show_reply_streams(self, to):
         self._current_reply_streams_accordion.selected_index = None  # to collapse
 
     def _show_last_replies(self):

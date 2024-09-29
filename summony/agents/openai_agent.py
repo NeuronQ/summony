@@ -19,6 +19,11 @@ class OpenAIAgent(AgentInterface):
 
     _active_stream = None
 
+    # static
+    _DEFAULT_PARAMS: dict[str, Any] = {
+        "max_tokens": 1024,
+    }
+
     def __init__(
         self,
         model_name: str,
@@ -40,7 +45,7 @@ class OpenAIAgent(AgentInterface):
             self.messages.append(Message.system(system_prompt))
 
         if params is not None:
-            self.params = params.copy()
+            self.params = self._DEFAULT_PARAMS.copy()
         else:
             self.params = {}
 

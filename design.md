@@ -1,3 +1,10 @@
+# TODO
+
+- [X] ask and re-ask single agent (to param)
+- conversation with (de)serialization in data format
+
+# GOAL
+
 ```py
 class ConnectorInterface:
     ...

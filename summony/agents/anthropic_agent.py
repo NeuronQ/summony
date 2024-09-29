@@ -9,11 +9,6 @@ from ..utils import separate_prefixed
 
 
 class AnthropicAgent(AgentInterface):
-    # static
-    DEFAULT_PARAMS: dict[str, Any] = {
-        "max_tokens": 1024,
-    }
-
     messages: list[Message]
     model_name: str
     params: dict[str, Any]
@@ -28,6 +23,7 @@ class AnthropicAgent(AgentInterface):
 
     _active_stream = None
 
+    # static
     _CURRENT_SONNET_MODEL = "claude-3-5-sonnet-20240620"
     _CURRENT_OPUS_MODEL = "claude-3-opus-20240229"
     _CURRENT_HAIKU_MODEL = "claude-3-haiku-20240307"
@@ -40,6 +36,9 @@ class AnthropicAgent(AgentInterface):
         "claude-3-opus": "claude-3-opus-20240229",
         "claude-haiku": _CURRENT_HAIKU_MODEL,
         "claude-3-haiku": _CURRENT_HAIKU_MODEL,
+    }
+    _DEFAULT_PARAMS: dict[str, Any] = {
+        "max_tokens": 1024,
     }
 
     def __init__(
@@ -66,7 +65,7 @@ class AnthropicAgent(AgentInterface):
         if params is not None:
             self.params = params.copy()
         else:
-            self.params = self.DEFAULT_PARAMS.copy()
+            self.params = self._DEFAULT_PARAMS.copy()
 
         self.raw_responses = defaultdict(list)
 
@@ -199,7 +198,6 @@ class AnthropicAgent(AgentInterface):
         message_create_args = dict(
             messages=self._make_agent_messages(messages),
             model=self.model_name,
-            # max_tokens=1024,
             **params,
         )
         if self.messages[0].role == "system":
