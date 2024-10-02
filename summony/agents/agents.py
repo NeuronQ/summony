@@ -6,6 +6,8 @@ from uuid import uuid4
 
 from dataclasses_json import dataclass_json
 
+from ..utils import HashableDict
+
 
 @dataclass_json
 @dataclass
@@ -14,7 +16,9 @@ class Message:
     content: str
 
     chosen: bool | None = None
-    params_idx: tuple[int, int] | None = None
+
+    # :: <params_idx> | <agent_idx> -> <params_idx>
+    params: dict[int, int] | int | None = None
 
     def __iter__(self):
         # converting to dict with dict(my_msg) uses this (and .to_dict is added by @dataclass_json)
@@ -39,8 +43,11 @@ class AgentInterface:
     messages: list[Message]
     model_name: str
     params: dict[str, Any]
+    params_versions: list[HashableDict]
 
     raw_responses: dict[list]
+    client: Any
+    async_client: Any
 
     @abstractmethod
     def __init__(

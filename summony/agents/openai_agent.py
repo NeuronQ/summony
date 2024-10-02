@@ -5,7 +5,7 @@ from typing import Any, AsyncIterator, Callable, Coroutine, Literal, Self
 from openai import OpenAI, AsyncOpenAI
 
 from .agents import AgentInterface, Message
-from ..utils import separate_prefixed
+from ..utils import separate_prefixed, HashableDict
 
 
 class OpenAIAgent(AgentInterface):
@@ -13,6 +13,7 @@ class OpenAIAgent(AgentInterface):
     messages: list[Message]
     model_name: str
     params: dict[str, Any]
+    params_versions: list[HashableDict]
 
     raw_responses: dict[list]
 
@@ -54,10 +55,13 @@ class OpenAIAgent(AgentInterface):
         else:
             self.params = {}
 
+        self.params_versions = []
+        self._store_params_version(self.params)
+
         self.raw_responses = defaultdict(list)
 
     def ask(self, question: str, prefill: str | None = None, **kwargs) -> str:
-        params_from_kwarg, left_kwargs = separate_prefixed(kwargs, "p_")
+        params_from_kwargs, left_kwargs = separate_prefixed(kwargs, "p_")
         if left_kwargs:
             raise ValueError(
                 f"ERROR in OpenAIAgent.ask: unexpected kwargs: {list(left_kwargs.keys())}"
@@ -68,37 +72,51 @@ class OpenAIAgent(AgentInterface):
         if prefill is not None:
             self.messages.append(Message.assistant(prefill))
 
+        params = {**self.params, **params_from_kwargs}
+        params_version = self._store_params_version(params)
+
         chat_completion = self.client.chat.completions.create(
             messages=self._make_agent_messages(self.messages),
             model=self.model_name,
-            **{**self.params, **params_from_kwarg},
+            **params,
         )
 
         self.raw_responses[len(self.messages)].append(chat_completion)
 
         client_message = chat_completion.choices[0].message
-        message = Message(role=client_message.role, content=client_message.content)
+        message = Message(
+            role=client_message.role,
+            content=client_message.content,
+            params=params_version,
+        )
         self.messages.append(message)
 
         return client_message.content
 
     def reask(self, **kwargs) -> str:
-        params_from_kwarg, left_kwargs = separate_prefixed(kwargs, "p_")
+        params_from_kwargs, left_kwargs = separate_prefixed(kwargs, "p_")
         if left_kwargs:
             raise ValueError(
                 f"ERROR in OpenAIAgent.ask: unexpected kwargs: {list(left_kwargs.keys())}"
             )
 
+        params = {**self.params, **params_from_kwargs}
+        params_version = self._store_params_version(params)
+
         chat_completion = self.client.chat.completions.create(
             messages=self._make_agent_messages(self.messages[:-1]),
             model=self.model_name,
-            **{**self.params, **params_from_kwarg},
+            **params,
         )
 
         self.raw_responses[len(self.messages)].extend(["<reask>", chat_completion])
 
         client_message = chat_completion.choices[0].message
-        message = Message(role=client_message.role, content=client_message.content)
+        message = Message(
+            role=client_message.role,
+            content=client_message.content,
+            params=params_version,
+        )
 
         if not isinstance(self.messages[-1], (list, tuple)):
             self.messages[-1] = [self.messages[-1]]
@@ -109,7 +127,7 @@ class OpenAIAgent(AgentInterface):
     async def ask_async_stream(
         self, question: str, prefill: str | None = None, **kwargs
     ) -> AsyncIterator[str]:
-        params_from_kwarg, left_kwargs = separate_prefixed(kwargs, "p_")
+        params_from_kwargs, left_kwargs = separate_prefixed(kwargs, "p_")
         if left_kwargs:
             raise ValueError(
                 f"ERROR in OpenAIAgent.ask: unexpected kwargs: {list(left_kwargs.keys())}"
@@ -120,14 +138,19 @@ class OpenAIAgent(AgentInterface):
         if prefill is not None:
             self.messages.append(Message.assistant(prefill))
 
+        params = {**self.params, **params_from_kwargs}
+        params_version = self._store_params_version(params)
+
         self._active_stream = await self.async_client.chat.completions.create(
             messages=self._make_agent_messages(self.messages),
             model=self.model_name,
             stream=True,
-            **{**self.params, **params_from_kwarg},
+            **params,
         )
 
-        self.messages.append(Message.assistant(""))
+        reply_message = Message.assistant("")
+        reply_message.params = params_version
+        self.messages.append(reply_message)
 
         async for chunk in self._active_stream:
             self.raw_responses[len(self.messages) - 1].append(chunk)
@@ -138,24 +161,28 @@ class OpenAIAgent(AgentInterface):
                 # TODO log error/warning or smth.
                 pass
             if chunk_content:
-                self.messages[-1].content += chunk_content
+                reply_message.content += chunk_content
                 yield chunk_content
 
     async def reask_async_stream(self, **kwargs) -> AsyncIterator[str]:
-        params_from_kwarg, left_kwargs = separate_prefixed(kwargs, "p_")
+        params_from_kwargs, left_kwargs = separate_prefixed(kwargs, "p_")
         if left_kwargs:
             raise ValueError(
                 f"ERROR in OpenAIAgent.ask: unexpected kwargs: {list(left_kwargs.keys())}"
             )
 
+        params = {**self.params, **params_from_kwargs}
+        params_version = self._store_params_version(params)
+
         self._active_stream = await self.async_client.chat.completions.create(
             messages=self._make_agent_messages(self.messages[:-1]),
             model=self.model_name,
             stream=True,
-            **{**self.params, **params_from_kwarg},
+            **params,
         )
 
         message = Message.assistant("")
+        message.params = params_version
         if not isinstance(self.messages[-1], (list, tuple)):
             self.messages[-1] = [self.messages[-1]]
         self.messages[-1].append(message)
@@ -185,3 +212,10 @@ class OpenAIAgent(AgentInterface):
                 to_append = chosen[0] if chosen else m[-1]
             out.append({"role": to_append.role, "content": to_append.content})
         return out
+
+    def _store_params_version(self, params: dict[str, Any]) -> int:
+        hparams = HashableDict(params)
+        if hparams in self.params_versions:
+            return self.params_versions.index(hparams)
+        self.params_versions.append(hparams)
+        return len(self.params_versions) - 1

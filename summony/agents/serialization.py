@@ -1,5 +1,6 @@
 from copy import deepcopy
 from dataclasses import dataclass
+from hashlib import sha1
 import json
 from typing import (
     Any,
@@ -14,8 +15,15 @@ from typing import (
 
 from dataclasses_json import dataclass_json
 
-from . import agents
 from .agents import AgentInterface, Message
+from .openai_agent import OpenAIAgent
+from .anthropic_agent import AnthropicAgent
+
+
+agent_classes = {
+    "OpenAIAgent": OpenAIAgent,
+    "AnthropicAgent": AnthropicAgent,
+}
 
 
 class ConversationData(TypedDict):
@@ -31,11 +39,29 @@ class ConversationData(TypedDict):
     params: dict[int, list[dict[str, Any]]]
 
 
+def hash_msg(m: Message) -> str:
+    return sha1(str((m.role, m.content)).encode("utf-8")).hexdigest()
+
+
 def conversation_to_dict(agents: list[AgentInterface]) -> ConversationData:
     agents_data = []
     messages_data = {}
     agent_messages = {}
     params = {}
+
+    def add_to_messages_data(m: Message, ag_idx: int) -> str:
+        m_clone = deepcopy(m)
+        if type(m_clone.params) is int:
+            m_clone.params = {ag_idx: m_clone.params}
+        m_id = hash_msg(m)
+        if m_id in messages_data:
+            if messages_data[m_id].params is None:
+                messages_data[m_id].params = m_clone.params
+            elif m_clone.params:
+                messages_data[m_id].params.update(m_clone.params)
+        else:
+            messages_data[m_id] = m_clone
+        return m_id
 
     for ag_idx, ag in enumerate(agents):
         agents_data.append(
@@ -43,24 +69,19 @@ def conversation_to_dict(agents: list[AgentInterface]) -> ConversationData:
                 "name": ag.name,
                 "model_name": ag.model_name,
                 "class": ag.__class__.__name__,
+                "params": ag.params,
             }
         )
-        params[ag_idx] = [ag.params]
+        params[ag_idx] = ag.params_versions
         agent_messages[ag_idx] = []
         for m in ag.messages:
-            if isinstance(m, Message):
-                m_clone = deepcopy(m)
-                m_clone.params_idx = (ag_idx, 0)
-                m_id = hash((m.role, m.content))
-                messages_data[m_id] = m_clone
+            if not isinstance(m, (tuple, list)):
+                m_id = add_to_messages_data(m, ag_idx)
                 agent_messages[ag_idx].append(m_id)
             else:
                 m_list = []
                 for mm in m:
-                    mm_clone = deepcopy(mm)
-                    mm_clone.params_idx = (ag_idx, 0)
-                    mm_id = hash((mm.role, mm.content))
-                    messages_data[mm_id] = mm_clone
+                    mm_id = add_to_messages_data(mm, ag_idx)
                     m_list.append(mm_id)
                 agent_messages[ag_idx].append(m_list)
 
@@ -76,18 +97,24 @@ def conversation_from_dict(data: ConversationData) -> list[AgentInterface]:
     ags = []
 
     for ag_idx, ag_data in enumerate(data["agents"]):
-        ag_cls = getattr(agents, ag_data["class"])
-        params = data["params"][ag_idx][-1]
+        ag_cls = agent_classes[ag_data["class"]]
         ag = ag_cls(
-            name=ag_data["name"], model_name=ag_data["model_name"], params=params
+            name=ag_data["name"],
+            model_name=ag_data["model_name"],
+            params=ag_data["params"],
         )
+        ag.params_versions = data["params"][ag_idx]
         ags.append(ag)
 
-    for ag_idx, mid in data["agent_messages"].items():
+    for ag_idx, messages in data["agent_messages"].items():
         ag = ags[ag_idx]
-        if not isinstance(mid, (list, tuple)):
-            ag.messages.append(deepcopy(data["messages"][mid]))
-        else:
-            ag.messages.append([deepcopy(data["messages"][mi]) for mi in mid])
+        for msg_or_list in messages:
+            if not isinstance(msg_or_list, (list, tuple)):
+                msg = msg_or_list
+                ag.messages.append(deepcopy(data["messages"][msg]))
+            else:
+                ag.messages.append(
+                    [deepcopy(data["messages"][msg]) for msg in msg_or_list]
+                )
 
     return ags

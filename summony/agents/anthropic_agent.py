@@ -5,7 +5,7 @@ from typing import Any, AsyncIterator, Callable, Coroutine, Literal, Self
 from anthropic import Anthropic, AsyncAnthropic
 
 from .agents import AgentInterface, Message
-from ..utils import separate_prefixed
+from ..utils import separate_prefixed, HashableDict
 
 
 class AnthropicAgent(AgentInterface):
@@ -13,6 +13,7 @@ class AnthropicAgent(AgentInterface):
     messages: list[Message]
     model_name: str
     params: dict[str, Any]
+    params_versions: list[HashableDict]
 
     raw_responses: dict[list]
 
@@ -71,10 +72,13 @@ class AnthropicAgent(AgentInterface):
         else:
             self.params = self._DEFAULT_PARAMS.copy()
 
+        self.params_versions = []
+        self._store_params_version(self.params)
+
         self.raw_responses = defaultdict(list)
 
     def ask(self, question: str, prefill: str | None = None, **kwargs) -> str:
-        params_from_kwarg, left_kwargs = separate_prefixed(kwargs, "p_")
+        params_from_kwargs, left_kwargs = separate_prefixed(kwargs, "p_")
         if left_kwargs:
             raise ValueError(
                 f"ERROR in AnthropicAgent.ask: unexpected kwargs: {list(left_kwargs.keys())}"
@@ -85,38 +89,43 @@ class AnthropicAgent(AgentInterface):
         if prefill is not None:
             self.messages.append(Message.assistant(prefill))
 
+        params = {**self.params, **params_from_kwargs}
+        params_version = self._store_params_version(params)
+
         client_message = self.client.messages.create(
-            **self._make_message_creat_args(
-                {**self.params, **params_from_kwarg},
-            )
+            **self._make_message_creat_args(params)
         )
 
         self.raw_responses[len(self.messages)].append(client_message)
 
         content = client_message.content[0].text
-        message = Message(role=client_message.role, content=content)
+        message = Message(
+            role=client_message.role, content=content, params=params_version
+        )
         self.messages.append(message)
 
         return content
 
     def reask(self, **kwargs) -> str:
-        params_from_kwarg, left_kwargs = separate_prefixed(kwargs, "p_")
+        params_from_kwargs, left_kwargs = separate_prefixed(kwargs, "p_")
         if left_kwargs:
             raise ValueError(
                 f"ERROR in AnthropicAgent.ask: unexpected kwargs: {list(left_kwargs.keys())}"
             )
 
+        params = {**self.params, **params_from_kwargs}
+        params_version = self._store_params_version(params)
+
         client_message = self.client.messages.create(
-            **self._make_message_creat_args(
-                {**self.params, **params_from_kwarg},
-                skip_last_message=True,
-            )
+            **self._make_message_creat_args(params, skip_last_message=True)
         )
 
         self.raw_responses[len(self.messages)].extend(["<reask>", client_message])
 
         content = client_message.content[0].text
-        message = Message(role=client_message.role, content=content)
+        message = Message(
+            role=client_message.role, content=content, params=params_version
+        )
 
         if not isinstance(self.messages[-1], (list, tuple)):
             self.messages[-1] = [self.messages[-1]]
@@ -127,7 +136,7 @@ class AnthropicAgent(AgentInterface):
     async def ask_async_stream(
         self, question: str, prefill: str | None = None, **kwargs
     ) -> AsyncIterator[str]:
-        params_from_kwarg, left_kwargs = separate_prefixed(kwargs, "p_")
+        params_from_kwargs, left_kwargs = separate_prefixed(kwargs, "p_")
         if left_kwargs:
             raise ValueError(
                 f"ERROR in AnthropicAgent.ask: unexpected kwargs: {list(left_kwargs.keys())}"
@@ -138,12 +147,16 @@ class AnthropicAgent(AgentInterface):
         if prefill is not None:
             self.messages.append(Message.assistant(prefill))
 
+        params = {**self.params, **params_from_kwargs}
+        params_version = self._store_params_version(params)
+
         self._active_stream = await self.async_client.messages.create(
-            **self._make_message_creat_args({**self.params, **params_from_kwarg}),
-            stream=True,
+            **self._make_message_creat_args(params), stream=True
         )
 
-        self.messages.append(Message.assistant(""))
+        message = Message.assistant("")
+        message.params = params_version
+        self.messages.append(message)
 
         async for event in self._active_stream:
             self.raw_responses[len(self.messages) - 1].append(event)
@@ -161,21 +174,22 @@ class AnthropicAgent(AgentInterface):
                 yield chunk_content
 
     async def reask_async_stream(self, **kwargs) -> AsyncIterator[str]:
-        params_from_kwarg, left_kwargs = separate_prefixed(kwargs, "p_")
+        params_from_kwargs, left_kwargs = separate_prefixed(kwargs, "p_")
         if left_kwargs:
             raise ValueError(
                 f"ERROR in AnthropicAgent.ask: unexpected kwargs: {list(left_kwargs.keys())}"
             )
 
+        params = {**self.params, **params_from_kwargs}
+        params_version = self._store_params_version(params)
+
         self._active_stream = await self.async_client.messages.create(
-            **self._make_message_creat_args(
-                {**self.params, **params_from_kwarg},
-                skip_last_message=True,
-            ),
+            **self._make_message_creat_args(params, skip_last_message=True),
             stream=True,
         )
 
         message = Message.assistant("")
+        message.params = params_version
         if not isinstance(self.messages[-1], (list, tuple)):
             self.messages[-1] = [self.messages[-1]]
         self.messages[-1].append(message)
@@ -220,3 +234,10 @@ class AnthropicAgent(AgentInterface):
                 to_append = chosen[0] if chosen else m[-1]
             out.append({"role": to_append.role, "content": to_append.content})
         return out
+
+    def _store_params_version(self, params: dict[str, Any]) -> int:
+        hparams = HashableDict(params)
+        if hparams in self.params_versions:
+            return self.params_versions.index(hparams)
+        self.params_versions.append(hparams)
+        return len(self.params_versions) - 1
