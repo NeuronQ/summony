@@ -7,6 +7,7 @@ from uuid import uuid4
 from dataclasses_json import dataclass_json
 
 from ..utils import HashableDict
+from ..loggers import AgentLoggerInterface
 
 
 @dataclass_json
@@ -19,6 +20,7 @@ class Message:
 
     # :: <params_idx> | <agent_idx> -> <params_idx>
     params: dict[int, int] | int | None = None
+    log_path: str | None = None
 
     def __iter__(self):
         # converting to dict with dict(my_msg) uses this (and .to_dict is added by @dataclass_json)
@@ -45,6 +47,7 @@ class AgentInterface:
     params: dict[str, Any]
     params_versions: list[HashableDict]
 
+    logger: AgentLoggerInterface
     raw_responses: dict[list]
     client: Any
     async_client: Any
