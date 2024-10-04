@@ -111,10 +111,10 @@ def conversation_from_dict(data: ConversationData) -> list[AgentInterface]:
         for msg_or_list in messages:
             if not isinstance(msg_or_list, (list, tuple)):
                 msg = msg_or_list
-                ag.messages.append(deepcopy(data["messages"][msg]))
+                ag.messages.append(Message(**data["messages"][msg]))
             else:
                 ag.messages.append(
-                    [deepcopy(data["messages"][msg]) for msg in msg_or_list]
+                    [Message(**data["messages"][msg]) for msg in msg_or_list]
                 )
 
     return ags

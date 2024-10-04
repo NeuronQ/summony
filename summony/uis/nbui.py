@@ -15,7 +15,7 @@ class NBUI:
     def __init__(
         self,
         *,
-        models: list[str] | None,
+        models: list[str] | None = None,
         agents: list[AgentInterface] | None = None,
         system_prompt: str | None = None,
         system_prompts: list[str] | None = None,
@@ -92,9 +92,9 @@ class NBUI:
 
         self._agent_coros = []
 
-        # self._end_show_reply_streams(to)  ###
+        self._end_show_reply_streams(to)
 
-        self._show_last_replies()
+        self._show_last_replies(to)
 
     def set_active_agents(self, active_agent_idxs):
         self.is_agent_active = [
@@ -289,9 +289,9 @@ class NBUI:
     def _end_show_reply_streams(self, to):
         self._current_reply_streams_accordion.selected_index = None  # to collapse
 
-    def _show_last_replies(self):
+    def _show_last_replies(self, to):
         for i, ag in enumerate(self.agents):
-            if self.is_agent_active[i]:
+            if self.is_agent_active[i] and (to is None or i in to):
                 display(HTML(self._make_avatar_html(i, "Agent " + ag.model_name)))
                 last_msg = (
                     ag.messages[-1]
