@@ -6,6 +6,7 @@ from anthropic import Anthropic, AsyncAnthropic
 
 from .agents import AgentInterface, Message
 from ..utils import separate_prefixed, HashableDict
+from ..loggers import AgentLoggerInterface, DefaultAgentLogger
 
 
 class AnthropicAgent(AgentInterface):
@@ -15,8 +16,8 @@ class AnthropicAgent(AgentInterface):
     params: dict[str, Any]
     params_versions: list[HashableDict]
 
+    logger: AgentLoggerInterface
     raw_responses: dict[list]
-
     client: Anthropic
     async_client: AsyncAnthropic
 
@@ -50,6 +51,8 @@ class AnthropicAgent(AgentInterface):
         system_prompt: str | None = None,
         creds: dict | None = None,
         params: dict[str, Any] | None = None,
+        logger: AgentLoggerInterface | None = None,
+        client_args: dict[str, Any] | None = None,
     ):
         self.provided_model_name = model_name
         self.model_name = self._MODEL_SHORTCUTS.get(model_name, model_name)
@@ -57,10 +60,16 @@ class AnthropicAgent(AgentInterface):
         self.name = name if name is not None else model_name
 
         self.client = Anthropic(
-            api_key=(creds.get("api_key") if creds else os.environ["ANTHROPIC_API_KEY"])
+            api_key=(
+                creds.get("api_key") if creds else os.environ["ANTHROPIC_API_KEY"]
+            ),
+            **(client_args or {}),
         )
         self.async_client = AsyncAnthropic(
-            api_key=(creds.get("api_key") if creds else os.environ["ANTHROPIC_API_KEY"])
+            api_key=(
+                creds.get("api_key") if creds else os.environ["ANTHROPIC_API_KEY"]
+            ),
+            **(client_args or {}),
         )
 
         self.messages = []
@@ -77,11 +86,13 @@ class AnthropicAgent(AgentInterface):
 
         self.raw_responses = defaultdict(list)
 
+        self.logger = logger if logger is not None else DefaultAgentLogger()
+
     def ask(self, question: str, prefill: str | None = None, **kwargs) -> str:
         params_from_kwargs, left_kwargs = separate_prefixed(kwargs, "p_")
         if left_kwargs:
-            raise ValueError(
-                f"ERROR in AnthropicAgent.ask: unexpected kwargs: {list(left_kwargs.keys())}"
+            self.logger.warning(
+                f"Warning in AnthropicAgent.ask: unexpected kwargs: {list(left_kwargs.keys())}"
             )
 
         self.messages.append(Message.user(question))
@@ -92,44 +103,82 @@ class AnthropicAgent(AgentInterface):
         params = {**self.params, **params_from_kwargs}
         params_version = self._store_params_version(params)
 
-        client_message = self.client.messages.create(
-            **self._make_message_creat_args(params)
-        )
+        model_call_params = self._make_message_creat_args(params)
+        try:
+            client_message = self.client.messages.create(**model_call_params)
 
-        self.raw_responses[len(self.messages)].append(client_message)
+            self.raw_responses[len(self.messages)].append(client_message)
 
-        content = client_message.content[0].text
-        message = Message(
-            role=client_message.role, content=content, params=params_version
-        )
-        self.messages.append(message)
+            content = client_message.content[0].text
+            message = Message(
+                role=client_message.role, content=content, params=params_version
+            )
+            self.messages.append(message)
+
+            chat_completion_dict = client_message.model_dump(mode="json")
+            log_path = self.logger.log_model_call(
+                req_content=model_call_params,
+                req_base_url=str(self.client.base_url),
+                res_content=chat_completion_dict,
+            )
+            message.log_path = log_path
+
+        except Exception as exc:
+            self.logger.exception("Error in AnthropicAgent.ask: %s", exc, exc_info=True)
+            self.logger.log_model_call(
+                req_content=model_call_params,
+                req_base_url=str(self.client.base_url),
+                error=exc,
+            )
+            raise exc
 
         return content
 
     def reask(self, **kwargs) -> str:
         params_from_kwargs, left_kwargs = separate_prefixed(kwargs, "p_")
         if left_kwargs:
-            raise ValueError(
-                f"ERROR in AnthropicAgent.ask: unexpected kwargs: {list(left_kwargs.keys())}"
+            self.logger.warning(
+                f"Warning in AnthropicAgent.reask: unexpected kwargs: {list(left_kwargs.keys())}"
             )
 
         params = {**self.params, **params_from_kwargs}
         params_version = self._store_params_version(params)
 
-        client_message = self.client.messages.create(
-            **self._make_message_creat_args(params, skip_last_message=True)
+        model_call_params = self._make_message_creat_args(
+            params, skip_last_message=True
         )
+        try:
+            client_message = self.client.messages.create(**model_call_params)
 
-        self.raw_responses[len(self.messages)].extend(["<reask>", client_message])
+            self.raw_responses[len(self.messages)].extend(["<reask>", client_message])
 
-        content = client_message.content[0].text
-        message = Message(
-            role=client_message.role, content=content, params=params_version
-        )
+            content = client_message.content[0].text
+            message = Message(
+                role=client_message.role, content=content, params=params_version
+            )
 
-        if not isinstance(self.messages[-1], (list, tuple)):
-            self.messages[-1] = [self.messages[-1]]
-        self.messages[-1].append(message)
+            if not isinstance(self.messages[-1], (list, tuple)):
+                self.messages[-1] = [self.messages[-1]]
+            self.messages[-1].append(message)
+
+            chat_completion_dict = client_message.model_dump(mode="json")
+            log_path = self.logger.log_model_call(
+                req_content=model_call_params,
+                req_base_url=str(self.client.base_url),
+                res_content=chat_completion_dict,
+            )
+            message.log_path = log_path
+
+        except Exception as exc:
+            self.logger.exception(
+                "Error in AnthropicAgent.reask: %s", exc, exc_info=True
+            )
+            self.logger.log_model_call(
+                req_content=model_call_params,
+                req_base_url=str(self.client.base_url),
+                error=exc,
+            )
+            raise exc
 
         return content
 
@@ -138,8 +187,8 @@ class AnthropicAgent(AgentInterface):
     ) -> AsyncIterator[str]:
         params_from_kwargs, left_kwargs = separate_prefixed(kwargs, "p_")
         if left_kwargs:
-            raise ValueError(
-                f"ERROR in AnthropicAgent.ask: unexpected kwargs: {list(left_kwargs.keys())}"
+            self.logger.warning(
+                f"Warning in AnthropicAgent.ask_async_stream: unexpected kwargs: {list(left_kwargs.keys())}"
             )
 
         self.messages.append(Message.user(question))
@@ -150,66 +199,122 @@ class AnthropicAgent(AgentInterface):
         params = {**self.params, **params_from_kwargs}
         params_version = self._store_params_version(params)
 
-        self._active_stream = await self.async_client.messages.create(
-            **self._make_message_creat_args(params), stream=True
-        )
+        model_call_params = self._make_message_creat_args(params)
+        try:
+            self._active_stream = await self.async_client.messages.create(
+                **model_call_params, stream=True
+            )
 
-        message = Message.assistant("")
-        message.params = params_version
-        self.messages.append(message)
+            message = Message.assistant("")
+            message.params = params_version
+            self.messages.append(message)
 
-        async for event in self._active_stream:
-            self.raw_responses[len(self.messages) - 1].append(event)
-            chunk_content = None
-            try:
-                if event.type == "content_block_start":
-                    chunk_content = event.content_block.text
-                elif event.type == "content_block_delta":
-                    chunk_content = event.delta.text
-            except:
-                # TODO
-                pass
-            if chunk_content:
-                self.messages[-1].content += chunk_content
-                yield chunk_content
+            chunks = []
+            async for event in self._active_stream:
+                chunks.append(event)
+                self.raw_responses[len(self.messages) - 1].append(event)
+                chunk_content = None
+                try:
+                    if event.type == "content_block_start":
+                        chunk_content = event.content_block.text
+                    elif event.type == "content_block_delta":
+                        chunk_content = event.delta.text
+                except Exception as exc:
+                    self.logger.warning(
+                        "Error in AnthropicAgent.ask_async_stream while processing chunk %d: %s",
+                        len(chunks) - 1,
+                        exc,
+                    )
+                    pass
+                if chunk_content:
+                    self.messages[-1].content += chunk_content
+                    yield chunk_content
+
+            chunks_dicts = [c.model_dump(mode="json") for c in chunks]
+            log_path = self.logger.log_model_call(
+                req_content=model_call_params,
+                req_base_url=str(self.client.base_url),
+                res_content={"chunks": chunks_dicts},
+            )
+            self.messages[-1].log_path = log_path
+
+        except Exception as exc:
+            self.logger.exception(
+                "Error in AnthropicAgent.ask_async_stream: %s", exc, exc_info=True
+            )
+            self.logger.log_model_call(
+                req_content=model_call_params,
+                req_base_url=str(self.client.base_url),
+                error=exc,
+            )
+            raise exc
 
     async def reask_async_stream(self, **kwargs) -> AsyncIterator[str]:
         params_from_kwargs, left_kwargs = separate_prefixed(kwargs, "p_")
         if left_kwargs:
-            raise ValueError(
-                f"ERROR in AnthropicAgent.ask: unexpected kwargs: {list(left_kwargs.keys())}"
+            self.logger.warning(
+                f"Warning in AnthropicAgent.reask_async_stream: unexpected kwargs: {list(left_kwargs.keys())}"
             )
 
         params = {**self.params, **params_from_kwargs}
         params_version = self._store_params_version(params)
 
-        self._active_stream = await self.async_client.messages.create(
-            **self._make_message_creat_args(params, skip_last_message=True),
-            stream=True,
+        model_call_params = self._make_message_creat_args(
+            params, skip_last_message=True
         )
+        try:
+            self._active_stream = await self.async_client.messages.create(
+                **model_call_params,
+                stream=True,
+            )
 
-        message = Message.assistant("")
-        message.params = params_version
-        if not isinstance(self.messages[-1], (list, tuple)):
-            self.messages[-1] = [self.messages[-1]]
-        self.messages[-1].append(message)
+            message = Message.assistant("")
+            message.params = params_version
+            if not isinstance(self.messages[-1], (list, tuple)):
+                self.messages[-1] = [self.messages[-1]]
+            self.messages[-1].append(message)
 
-        self.raw_responses[len(self.messages) - 1].append("<reask>")
+            self.raw_responses[len(self.messages) - 1].append("<reask>")
 
-        async for event in self._active_stream:
-            self.raw_responses[len(self.messages) - 1].append(event)
-            chunk_content = None
-            try:
-                if event.type == "content_block_start":
-                    chunk_content = event.content_block.text
-                elif event.type == "content_block_delta":
-                    chunk_content = event.delta.text
-            except:
-                # TODO
-                pass
-            if chunk_content:
-                message.content += chunk_content
-                yield chunk_content
+            chunks = []
+            async for event in self._active_stream:
+                chunks.append(event)
+                self.raw_responses[len(self.messages) - 1].append(event)
+                chunk_content = None
+                try:
+                    if event.type == "content_block_start":
+                        chunk_content = event.content_block.text
+                    elif event.type == "content_block_delta":
+                        chunk_content = event.delta.text
+                except Exception as exc:
+                    self.logger.warning(
+                        "Error in AnthropicAgent.reask_async_stream while processing chunk %d: %s",
+                        len(chunks) - 1,
+                        exc,
+                    )
+                    pass
+                if chunk_content:
+                    message.content += chunk_content
+                    yield chunk_content
+
+            chunks_dicts = [c.model_dump(mode="json") for c in chunks]
+            log_path = self.logger.log_model_call(
+                req_content=model_call_params,
+                req_base_url=str(self.client.base_url),
+                res_content={"chunks": chunks_dicts},
+            )
+            message.log_path = log_path
+
+        except Exception as exc:
+            self.logger.exception(
+                "Error in AnthropicAgent.reask_async_stream: %s", exc, exc_info=True
+            )
+            self.logger.log_model_call(
+                req_content=model_call_params,
+                req_base_url=str(self.client.base_url),
+                error=exc,
+            )
+            raise exc
 
     def _make_message_creat_args(self, params, skip_last_message=False):
         messages = self.messages[:-1] if skip_last_message else self.messages

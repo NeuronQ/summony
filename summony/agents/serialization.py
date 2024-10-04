@@ -55,12 +55,12 @@ def conversation_to_dict(agents: list[AgentInterface]) -> ConversationData:
             m_clone.params = {ag_idx: m_clone.params}
         m_id = hash_msg(m)
         if m_id in messages_data:
-            if messages_data[m_id].params is None:
-                messages_data[m_id].params = m_clone.params
+            if messages_data[m_id]["params"] is None:
+                messages_data[m_id]["params"] = m_clone.params
             elif m_clone.params:
-                messages_data[m_id].params.update(m_clone.params)
+                messages_data[m_id]["params"].update(m_clone.params)
         else:
-            messages_data[m_id] = m_clone
+            messages_data[m_id] = dict(m_clone)
         return m_id
 
     for ag_idx, ag in enumerate(agents):
