@@ -80,7 +80,7 @@ class NBUI:
             if self.is_agent_active[i]:
                 if to is None or i in to:
                     self._agent_coros.append(
-                        self._update_reply_stream_display(i, q, prefill, to)
+                        self._ask_and_update_reply_stream_display(i, q, prefill, to)
                     )
             else:
                 if to is not None and i in to:
@@ -101,13 +101,9 @@ class NBUI:
             (i in active_agent_idxs) for i in range(len(self.agents))
         ]
 
-    async def _update_reply_stream_display(self, ag_idx, q, prefill, to):
+    async def _ask_and_update_reply_stream_display(self, ag_idx, q, prefill, to):
         ag = self.agents[ag_idx]
-        if q is not None:
-            stream = ag.ask_async_stream(q, prefill)
-        else:
-            assert prefill is None
-            stream = ag.reask_async_stream()
+        stream = ag.ask_async_stream(q, prefill)
 
         async for _ in stream:
             texts = [
