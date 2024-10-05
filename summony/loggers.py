@@ -2,6 +2,7 @@ from abc import abstractmethod
 import logging
 import uuid
 from pathlib import Path
+import time
 import datetime
 import traceback
 import json
@@ -37,7 +38,7 @@ def make_default_logger(
     return logger
 
 
-class AgentLoggerInterface:
+class XLoggerInterface:
     # --- logging.Logger methods
     @abstractmethod
     def log(self, level: int, msg, *args, **kwargs): ...
@@ -80,26 +81,36 @@ class AgentLoggerInterface:
     def log_model_reply_chunk(self, chunk: dict, error: Exception | None = None): ...
 
 
-class DefaultAgentLogger(AgentLoggerInterface):
+class DefaultXLogger(XLoggerInterface):
     _name: str
     _logger: logging.Logger
 
     def __init__(
-        self, logger: logging.Logger | None = None, model_logs_path: str | None = None
+        self,
+        logger: logging.Logger | None = None,
+        model_logs_path: str | None = None,
+        name: str | None = None,
     ):
         super().__init__()
+
+        # timesatamp int + random 8-char hex
+        suffix = str(int(time.time() * 1000)) + "-" + uuid.uuid4().hex[:4]
         if logger is not None:
             self._logger = logger
         else:
             logs_path = Path(__file__).parent.resolve() / "logs"
             logs_path.mkdir(parents=True, exist_ok=True)
-            self._logger = make_default_logger(file_path=logs_path / "log.log")
+            self._logger = make_default_logger(
+                file_path=logs_path / "log.log", name=f"logger-{name}-{suffix}"
+            )
 
-        self._name = self._logger.name
+        self._name = self._logger.name if name is None else name
 
         if model_logs_path is None:
             model_logs_path = (
-                Path(__file__).parent.resolve() / "logs" / f"agent-{self._name}"
+                Path(__file__).parent.resolve()
+                / "logs"
+                / f"agent-{self._name}-{suffix}"
             )
         model_logs_path = Path(model_logs_path)
         model_logs_path.mkdir(parents=True, exist_ok=True)

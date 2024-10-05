@@ -17,7 +17,7 @@ from uuid import uuid4
 from dataclasses_json import dataclass_json
 
 from ..utils import separate_prefixed, HashableDict
-from ..loggers import AgentLoggerInterface, DefaultAgentLogger
+from ..loggers import XLoggerInterface, DefaultXLogger
 from ..model_connectors import ModelConnectorInterface
 
 
@@ -58,7 +58,7 @@ class AgentInterface:
     params: dict[str, Any]
     params_versions: list[HashableDict]
 
-    logger: AgentLoggerInterface
+    logger: XLoggerInterface
     raw_responses: dict[list]
     connector: ModelConnectorInterface
 
@@ -72,7 +72,7 @@ class AgentInterface:
         system_prompt: str | None = None,
         creds: dict | None = None,
         params: dict[str, Any] | None = None,
-        logger: AgentLoggerInterface | None = None,
+        logger: XLoggerInterface | None = None,
         client_args: dict[str, Any] | None = None,
     ): ...
 
@@ -95,7 +95,7 @@ class BaseAgent(AgentInterface):
     params: dict[str, Any]
     params_versions: list[HashableDict]
 
-    logger: AgentLoggerInterface
+    logger: XLoggerInterface
     raw_responses: dict[list]
     connector: ModelConnectorInterface
 
@@ -113,14 +113,14 @@ class BaseAgent(AgentInterface):
         system_prompt: str | None = None,
         creds: dict | None = None,
         params: dict[str, Any] | None = None,
-        logger: AgentLoggerInterface | None = None,
+        logger: XLoggerInterface | None = None,
         client_args: dict[str, Any] | None = None,
     ):
         self.model_name = model_name
 
         self.name = name if name is not None else model_name
 
-        self.logger = logger if logger is not None else DefaultAgentLogger()
+        self.logger = logger if logger is not None else DefaultXLogger(name=self.name)
 
         self.connector = self.MODEL_CONNECTOR_CLASS(
             creds=creds, logger=logger, client_args=client_args
