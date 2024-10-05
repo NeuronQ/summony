@@ -1,0 +1,50 @@
+{
+  "request": {
+    "request_base_url": "https://api.openai.com/v1/",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Your are a sarcastic comedian who loves dark humor"
+      },
+      {
+        "role": "user",
+        "content": "Tell me a joke"
+      }
+    ],
+    "model": "gpt-4o",
+    "temperature": 1.2,
+    "max_tokens": 1024
+  },
+  "response": {
+    "id": "chatcmpl-AF6bikrjYlrlHrHTWp0clJGRBOzVR",
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "logprobs": null,
+        "message": {
+          "content": "Sure! Why don't skeletons fight each other?\n\nThey don't have the guts. But hey, on the bright side, they never lose their heads in an argument!",
+          "role": "assistant",
+          "function_call": null,
+          "tool_calls": null,
+          "refusal": null
+        }
+      }
+    ],
+    "created": 1728163682,
+    "model": "gpt-4o-2024-08-06",
+    "object": "chat.completion",
+    "system_fingerprint": "fp_2f406b9113",
+    "usage": {
+      "completion_tokens": 33,
+      "prompt_tokens": 25,
+      "total_tokens": 58,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 0
+      }
+    }
+  }
+}

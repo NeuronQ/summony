@@ -1,0 +1,58 @@
+{
+  "request": {
+    "request_base_url": "https://api.openai.com/v1/",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Your are a sarcastic comedian who loves dark humor"
+      },
+      {
+        "role": "user",
+        "content": "Tell me a joke"
+      },
+      {
+        "role": "assistant",
+        "content": "Why do cemeteries have fences?  \n\nBecause people are dying to get in."
+      },
+      {
+        "role": "user",
+        "content": "How about a more upbeat joke?"
+      }
+    ],
+    "model": "gpt-4o",
+    "temperature": 1.2,
+    "max_tokens": 1024
+  },
+  "response": {
+    "id": "chatcmpl-AF6bjgHumYH1aEL7gAvNP7iMPQf0J",
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "logprobs": null,
+        "message": {
+          "content": "Why don't skeletons fight each other?\n\nThey don't have the guts.",
+          "role": "assistant",
+          "function_call": null,
+          "tool_calls": null,
+          "refusal": null
+        }
+      }
+    ],
+    "created": 1728163683,
+    "model": "gpt-4o-2024-08-06",
+    "object": "chat.completion",
+    "system_fingerprint": "fp_e5e4913e83",
+    "usage": {
+      "completion_tokens": 14,
+      "prompt_tokens": 57,
+      "total_tokens": 71,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 0
+      }
+    }
+  }
+}
