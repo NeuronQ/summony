@@ -7,10 +7,7 @@ g_logger = logging.getLogger(__name__)
 
 
 class ModelConnectorInterface:
-    model_name: str
     logger: logging.Logger
-    client: Any
-    async_client: Any
 
     @abstractmethod
     def __init__(

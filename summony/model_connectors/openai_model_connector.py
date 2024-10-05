@@ -11,8 +11,8 @@ g_logger = logging.getLogger(__name__)
 
 
 class OpenAIModelConnector(ModelConnectorInterface):
-    model_name: str
     logger: logging.Logger
+
     client: OpenAI
     async_client: AsyncOpenAI
 
