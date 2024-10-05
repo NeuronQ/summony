@@ -1,11 +1,8 @@
-from collections import defaultdict
 import os
 import logging
 from typing import Any, AsyncIterator, Callable, Coroutine, Literal, Self, Tuple
 
 from anthropic import Anthropic, AsyncAnthropic
-
-from ..loggers import AgentLoggerInterface, DefaultAgentLogger
 
 
 g_logger = logging.getLogger(__name__)
@@ -13,7 +10,7 @@ g_logger = logging.getLogger(__name__)
 
 class AnthropicModelConnector:
     model_name: str
-    logger: AgentLoggerInterface
+    logger: logging.Logger
     client: Anthropic
     async_client: AsyncAnthropic
 

@@ -2,13 +2,23 @@ from abc import abstractmethod
 from collections import defaultdict
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Any, AsyncIterator, Callable, Coroutine, Literal, Self, Sequence
+from typing import (
+    Any,
+    AsyncIterator,
+    Callable,
+    Coroutine,
+    Literal,
+    Self,
+    Sequence,
+    Type,
+)
 from uuid import uuid4
 
 from dataclasses_json import dataclass_json
 
 from ..utils import separate_prefixed, HashableDict
 from ..loggers import AgentLoggerInterface, DefaultAgentLogger
+from ..model_connectors import ModelConnectorInterface
 
 
 @dataclass_json
@@ -50,9 +60,9 @@ class AgentInterface:
 
     logger: AgentLoggerInterface
     raw_responses: dict[list]
-    connector: Any
+    connector: ModelConnectorInterface
 
-    MODEL_CONNECTOR_CLASS: Callable = None
+    MODEL_CONNECTOR_CLASS: Type[ModelConnectorInterface] = None
 
     @abstractmethod
     def __init__(
@@ -87,10 +97,10 @@ class BaseAgent(AgentInterface):
 
     logger: AgentLoggerInterface
     raw_responses: dict[list]
-    connector: Any
+    connector: ModelConnectorInterface
 
     # static
-    MODEL_CONNECTOR_CLASS: Callable = None
+    MODEL_CONNECTOR_CLASS: Type[ModelConnectorInterface] = None
 
     _DEFAULT_PARAMS: dict[str, Any] = {
         "max_tokens": 1024,

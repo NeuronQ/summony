@@ -1,23 +1,20 @@
-from collections import defaultdict
 import os
 import logging
 from typing import Any, AsyncIterator, Callable, Coroutine, Literal, Self, Tuple
 
 from openai import OpenAI, AsyncOpenAI
 
-from ..loggers import AgentLoggerInterface, DefaultAgentLogger
+from .model_connectors import ModelConnectorInterface
 
 
 g_logger = logging.getLogger(__name__)
 
 
-class OpenAIModelConnector:
+class OpenAIModelConnector(ModelConnectorInterface):
     model_name: str
-    logger: AgentLoggerInterface
+    logger: logging.Logger
     client: OpenAI
     async_client: AsyncOpenAI
-
-    _active_stream = None
 
     def __init__(
         self,
