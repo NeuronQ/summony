@@ -22,13 +22,16 @@ class OpenAIModelConnector(ModelConnectorInterface):
         client_args: dict[str, Any] | None = None,
         logger: logging.Logger | None = None,
     ):
+        api_key = creds.get("api_key") if creds else os.environ["OPENAI_API_KEY"]
+        if client_args is None:
+            client_args = {}
         self.client = OpenAI(
-            api_key=(creds.get("api_key") if creds else os.environ["OPENAI_API_KEY"]),
-            **(client_args or {}),
+            api_key=api_key,
+            **client_args,
         )
         self.async_client = AsyncOpenAI(
-            api_key=(creds.get("api_key") if creds else os.environ["OPENAI_API_KEY"]),
-            **(client_args or {}),
+            api_key=api_key,
+            **client_args,
         )
         self.logger = logger if logger is not None else g_logger
 
@@ -37,15 +40,7 @@ class OpenAIModelConnector(ModelConnectorInterface):
             messages=messages, model=model, **kwargs
         )
         completion_text = completion.choices[0].message.content
-        try:
-            completion_dict = completion.model_dump(mode="json")
-        except Exception as exc:
-            completion_dict = {}
-            self.logger.warning(
-                "OpenAIModelConnector.generate_completion: Failed to convert completion to JSON-serializable dict: %s",
-                exc,
-                exc_info=True,
-            )
+        completion_dict = completion.model_dump(mode="json")
         return completion_text, completion_dict
 
     async def async_generate_completion(
@@ -67,16 +62,7 @@ class OpenAIModelConnector(ModelConnectorInterface):
                     exc_info=True,
                 )
 
-            try:
-                chunk_dict = chunk.model_dump(mode="json")
-            except Exception as exc:
-                chunk_dict = {}
-                self.logger.warning(
-                    "OpenAIModelConnector.async_generate_completion: Failed to make JSON-serializable dict from chunk %d: %s",
-                    i,
-                    exc,
-                    exc_info=True,
-                )
+            chunk_dict = chunk.model_dump(mode="json")
 
             if chunk_text:
                 yield chunk_text, chunk_dict

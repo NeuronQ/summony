@@ -35,18 +35,11 @@ class AnthropicModelConnector:
         client_args: dict[str, Any] | None = None,
         logger: logging.Logger | None = None,
     ):
-        self.client = Anthropic(
-            api_key=(
-                creds.get("api_key") if creds else os.environ["ANTHROPIC_API_KEY"]
-            ),
-            **(client_args or {}),
-        )
-        self.async_client = AsyncAnthropic(
-            api_key=(
-                creds.get("api_key") if creds else os.environ["ANTHROPIC_API_KEY"]
-            ),
-            **(client_args or {}),
-        )
+        api_key = creds.get("api_key") if creds else os.environ["ANTHROPIC_API_KEY"]
+        if client_args is None:
+            client_args = {}
+        self.client = Anthropic(api_key=api_key, **client_args)
+        self.async_client = AsyncAnthropic(api_key=api_key, **client_args)
         self.logger = logger if logger is not None else g_logger
 
     def generate_completion(self, messages, model, **kwargs) -> Tuple[str, dict]:
@@ -54,15 +47,7 @@ class AnthropicModelConnector:
             **self._make_message_create_args(messages, model), **kwargs
         )
         completion_text = client_message.content[0].text
-        try:
-            completion_dict = client_message.model_dump(mode="json")
-        except Exception as exc:
-            completion_dict = {}
-            self.logger.warning(
-                "AnthropicModelConnector.generate_completion: Failed to convert completion to JSON-serializable dict: %s",
-                exc,
-                exc_info=True,
-            )
+        completion_dict = client_message.model_dump(mode="json")
         return completion_text, completion_dict
 
     async def async_generate_completion(
@@ -89,16 +74,7 @@ class AnthropicModelConnector:
                     exc_info=True,
                 )
 
-            try:
-                chunk_dict = event.model_dump(mode="json")
-            except Exception as exc:
-                chunk_dict = {}
-                self.logger.warning(
-                    "AnthropicModelConnector.async_generate_completion: Failed to make JSON-serializable dict from chunk %d: %s",
-                    i,
-                    exc,
-                    exc_info=True,
-                )
+            chunk_dict = event.model_dump(mode="json")
 
             if chunk_text:
                 yield chunk_text, chunk_dict
