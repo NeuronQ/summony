@@ -1,14 +1,26 @@
 import os
 import logging
-from typing import Any, AsyncIterator, Callable, Coroutine, Literal, Self, Tuple
+from typing import (
+    Any,
+    AsyncIterator,
+    Callable,
+    Coroutine,
+    Iterator,
+    Literal,
+    Self,
+    Tuple,
+)
 
 from anthropic import Anthropic, AsyncAnthropic
+from anthropic.types import Message as AnthropicMessage, MessageStreamEvent
+
+from .model_connectors import ModelConnectorInterface, MessageDict
 
 
 g_logger = logging.getLogger(__name__)
 
 
-class AnthropicModelConnector:
+class AnthropicModelConnector(ModelConnectorInterface):
     logger: logging.Logger
 
     client: Anthropic
@@ -43,44 +55,71 @@ class AnthropicModelConnector:
         self.async_client = AsyncAnthropic(api_key=api_key, **client_args)
         self.logger = logger if logger is not None else g_logger
 
-    def generate_completion(self, messages, model, **kwargs) -> Tuple[str, dict]:
+    def generate(
+        self, messages: list[MessageDict], model: str, **kwargs
+    ) -> Tuple[str, dict]:
         client_message = self.client.messages.create(
             **self._make_message_create_args(messages, model, kwargs)
         )
-        completion_text = client_message.content[0].text
-        completion_dict = client_message.model_dump(mode="json")
-        return completion_text, completion_dict
+        return self._process_created_message(client_message)
 
-    async def async_generate_completion(
-        self, messages, model, **kwargs
+    async def generate_async(
+        self, messages: list[MessageDict], model: str, **kwargs
+    ) -> Tuple[str, dict]:
+        client_message = await self.async_client.messages.create(
+            **self._make_message_create_args(messages, model, kwargs)
+        )
+        return self._process_created_message(client_message)
+
+    @staticmethod
+    def _process_created_message(message: AnthropicMessage) -> Tuple[str, dict]:
+        return message.content[0].text, message.model_dump(mode="json")
+
+    def generate_stream(
+        self, messages: list[MessageDict], model: str, **kwargs
+    ) -> Iterator[Tuple[str, dict]]:
+        stream = self.async_client.messages.create(
+            **self._make_message_create_args(messages, model, kwargs), stream=True
+        )
+        i = 0
+        for event in stream:
+            chunk_text, chunk_dict = self._process_stream_event(event, i)
+            if chunk_text:
+                yield chunk_text, chunk_dict
+            i += 1
+
+    async def generate_async_stream(
+        self, messages: list[MessageDict], model: str, **kwargs
     ) -> AsyncIterator[Tuple[str, dict]]:
         stream = await self.async_client.messages.create(
             **self._make_message_create_args(messages, model, kwargs), stream=True
         )
         i = 0
         async for event in stream:
-            try:
-                if event.type == "content_block_start":
-                    chunk_text = event.content_block.text
-                elif event.type == "content_block_delta":
-                    chunk_text = event.delta.text
-                else:
-                    chunk_text = None
-            except Exception as exc:
-                chunk_text = None
-                self.logger.warning(
-                    "AnthropicModelConnector.async_generate_completion: Failed to get content from chunk %d: %s",
-                    i,
-                    exc,
-                    exc_info=True,
-                )
-
-            chunk_dict = event.model_dump(mode="json")
-
+            chunk_text, chunk_dict = self._process_stream_event(event, i)
             if chunk_text:
                 yield chunk_text, chunk_dict
-
             i += 1
+
+    def _process_stream_event(
+        self, event: MessageStreamEvent, event_idx: int
+    ) -> Tuple[str, dict]:
+        try:
+            if event.type == "content_block_start":
+                chunk_text = event.content_block.text
+            elif event.type == "content_block_delta":
+                chunk_text = event.delta.text
+            else:
+                chunk_text = None
+        except Exception as exc:
+            chunk_text = None
+            self.logger.warning(
+                "AnthropicModelConnector: Failed to get content from chunk %d: %s",
+                event_idx,
+                exc,
+                exc_info=True,
+            )
+        return chunk_text, event.model_dump(mode="json")
 
     def get_base_url(self) -> str:
         return str(self.client.base_url)

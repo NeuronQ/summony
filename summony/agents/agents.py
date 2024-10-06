@@ -172,7 +172,7 @@ class BaseAgent(AgentInterface):
             **left_kwargs,
         )
         try:
-            completion_text, completion_dict = self.connector.generate_completion(
+            completion_text, completion_dict = self.connector.generate(
                 **model_call_params
             )
 
@@ -256,7 +256,7 @@ class BaseAgent(AgentInterface):
             async for (
                 chunk_text,
                 chunk_dict,
-            ) in self.connector.async_generate_completion(**model_call_params):
+            ) in self.connector.generate_async_stream(**model_call_params):
                 chunks_dicts.append(chunk_dict)
                 self.raw_responses[len(self.messages) - 1].append(chunk_dict)
                 reply_message.content += chunk_text
