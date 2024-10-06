@@ -103,7 +103,7 @@ class BaseAgent(AgentInterface):
     MODEL_CONNECTOR_CLASS: Type[ModelConnectorInterface] = None
 
     _DEFAULT_PARAMS: dict[str, Any] = {
-        "max_tokens": 1024,
+        # "max_tokens": 1024,
     }
 
     def __init__(
@@ -151,7 +151,7 @@ class BaseAgent(AgentInterface):
         params_from_kwargs, left_kwargs = separate_prefixed(kwargs, "p_")
         if left_kwargs:
             self.logger.warning(
-                f"Warning in OpenAIAgent.ask: unexpected kwargs: {list(left_kwargs.keys())}"
+                f"Warning in BaseAgent.ask: unexpected kwargs: {list(left_kwargs.keys())}"
             )
 
         if question is not None:
@@ -198,7 +198,7 @@ class BaseAgent(AgentInterface):
             reply_message.log_path = log_path
 
         except Exception as exc:
-            self.logger.exception("Error in OpenAIAgent.ask: %s", exc, exc_info=True)
+            self.logger.exception("Error in BaseAgent.ask: %s", exc, exc_info=True)
             self.logger.log_model_call(
                 req_content=model_call_params,
                 req_base_url=self.connector.get_base_url(),
@@ -219,7 +219,7 @@ class BaseAgent(AgentInterface):
         params_from_kwargs, left_kwargs = separate_prefixed(kwargs, "p_")
         if left_kwargs:
             self.logger.warning(
-                f"Warning in OpenAIAgent.ask: unexpected kwargs: {list(left_kwargs.keys())}"
+                f"Warning in BaseAgent.ask: unexpected kwargs: {list(left_kwargs.keys())}"
             )
 
         if question is not None:
@@ -271,7 +271,7 @@ class BaseAgent(AgentInterface):
 
         except Exception as exc:
             self.logger.exception(
-                "Error in OpenAIAgent.ask_async_stream: %s", exc, exc_info=True
+                "Error in BaseAgent.ask_async_stream: %s", exc, exc_info=True
             )
             self.logger.log_model_call(
                 req_content=model_call_params,

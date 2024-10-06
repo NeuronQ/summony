@@ -1,3 +1,4 @@
+from copy import deepcopy
 import os
 import logging
 from typing import Any, AsyncIterator, Callable, Coroutine, Literal, Self, Tuple
@@ -36,8 +37,23 @@ class OpenAIModelConnector(ModelConnectorInterface):
         self.logger = logger if logger is not None else g_logger
 
     def generate_completion(self, messages, model, **kwargs) -> Tuple[str, dict]:
-        completion = self.client.chat.completions.create(
-            messages=messages, model=model, **kwargs
+        completion_create_args = self._make_completion_create_args(
+            messages, model, kwargs
+        )
+        completion = self.client.chat.completions.create(**completion_create_args)
+        completion_text = completion.choices[0].message.content
+        completion_dict = completion.model_dump(mode="json")
+        return completion_text, completion_dict
+
+    # TODO: pick better name for thios and add to interface (alongside everything that's missing)
+    async def async_nostream_generate_completion(
+        self, messages, model, **kwargs
+    ) -> Tuple[str, dict]:
+        completion_create_args = self._make_completion_create_args(
+            messages, model, kwargs
+        )
+        completion = await self.async_client.chat.completions.create(
+            **completion_create_args
         )
         completion_text = completion.choices[0].message.content
         completion_dict = completion.model_dump(mode="json")
@@ -46,8 +62,19 @@ class OpenAIModelConnector(ModelConnectorInterface):
     async def async_generate_completion(
         self, messages, model, **kwargs
     ) -> AsyncIterator[Tuple[str, dict]]:
+        completion_create_args = self._make_completion_create_args(
+            messages, model, kwargs
+        )
+        if model.startswith("o1"):
+            (
+                completion_text,
+                completion_dict,
+            ) = await self.async_nostream_generate_completion(**completion_create_args)
+            yield completion_text, completion_dict
+            return
+
         stream = await self.async_client.chat.completions.create(
-            messages=messages, model=model, stream=True, **kwargs
+            **completion_create_args, stream=True
         )
         i = 0
         async for chunk in stream:
@@ -71,3 +98,15 @@ class OpenAIModelConnector(ModelConnectorInterface):
 
     def get_base_url(self) -> str:
         return str(self.client.base_url)
+
+    @classmethod
+    def _make_completion_create_args(
+        cls, messages: list[dict], model: str, extra_args: dict
+    ) -> dict:
+        out = dict(messages=messages, model=model)
+        if model.startswith("o1"):
+            if len(out["messages"]) and out["messages"][0]["role"] == "system":
+                out["messages"] = deepcopy(messages)
+                out["messages"][0]["role"] = "user"
+        out.update(extra_args)
+        return out

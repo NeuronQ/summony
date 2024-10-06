@@ -15,6 +15,7 @@ class AnthropicModelConnector:
     async_client: AsyncAnthropic
 
     # static
+    _DEFAULT_MAX_TOKENS = 4096
     _CURRENT_SONNET_MODEL = "claude-3-5-sonnet-20240620"
     _CURRENT_OPUS_MODEL = "claude-3-opus-20240229"
     _CURRENT_HAIKU_MODEL = "claude-3-haiku-20240307"
@@ -44,7 +45,7 @@ class AnthropicModelConnector:
 
     def generate_completion(self, messages, model, **kwargs) -> Tuple[str, dict]:
         client_message = self.client.messages.create(
-            **self._make_message_create_args(messages, model), **kwargs
+            **self._make_message_create_args(messages, model, kwargs)
         )
         completion_text = client_message.content[0].text
         completion_dict = client_message.model_dump(mode="json")
@@ -54,7 +55,7 @@ class AnthropicModelConnector:
         self, messages, model, **kwargs
     ) -> AsyncIterator[Tuple[str, dict]]:
         stream = await self.async_client.messages.create(
-            **self._make_message_create_args(messages, model), **kwargs, stream=True
+            **self._make_message_create_args(messages, model, kwargs), stream=True
         )
         i = 0
         async for event in stream:
@@ -85,9 +86,14 @@ class AnthropicModelConnector:
         return str(self.client.base_url)
 
     @classmethod
-    def _make_message_create_args(cls, messages: list[dict], model: str) -> dict:
+    def _make_message_create_args(
+        cls, messages: list[dict], model: str, extra_args: dict
+    ) -> dict:
         out = dict(messages=messages, model=cls._MODEL_SHORTCUTS.get(model, model))
         if len(messages) and messages[0]["role"] == "system":
             out["messages"] = messages[1:]
             out["system"] = messages[0]["content"]
+        out.update(extra_args)
+        if "max_tokens" not in out:
+            out["max_tokens"] = cls._DEFAULT_MAX_TOKENS
         return out

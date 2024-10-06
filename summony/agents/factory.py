@@ -7,7 +7,7 @@ from .dummy_agent import DummyAgent
 def get_default_agent_for_model(model: str) -> AgentInterface:
     if model.startswith("dummy"):
         return DummyAgent(model_name=model)
-    elif model.startswith("gpt-"):
+    elif model.startswith("gpt") or model.startswith("o1"):
         return OpenAIAgent(model_name=model)
     elif model.startswith("claude"):
         return AnthropicAgent(model_name=model)

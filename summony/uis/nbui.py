@@ -55,6 +55,7 @@ class NBUI:
                             break
                 else:
                     for ag in self.agents:
+                        # TODO: implement SKIP_PARAM value (None won't work in all cases)
                         ag.params[k[2:]] = v
 
         self.mode = mode
