@@ -222,11 +222,30 @@ class NBUI:
                     border-radius: 8px;
                 }
                 .S6-Avatar.S6-AgentIdx-0 {
-                    background: orange;
+                    background: rebeccapurple;
                 }
                 .S6-Avatar.S6-AgentIdx-1 {
+                    background: darkcyan;
+                }
+                .S6-Avatar.S6-AgentIdx-2 {
+                    background: magenta;
+                }
+                .S6-Avatar.S6-AgentIdx-3 {
+                    background: blueviolet;
+                }
+                .S6-Avatar.S6-AgentIdx-4 {
+                    background: darkgoldenrod;
+                }
+                .S6-Avatar.S6-AgentIdx-5 {
+                    background: darkorange;
+                }
+                .S6-Avatar.S6-AgentIdx-6 {
                     background: green;
                 }
+                .S6-Avatar.S6-AgentIdx-7 {
+                    background: cornflowerblue;
+                }
+                
 
                 .S6-Message-Head {
                     margin: 0.2rem 0;
@@ -234,7 +253,7 @@ class NBUI:
 
                 .S6-ReplyBlock {
                     padding: 0.2rem 0.5rem;
-                    border-radius: 8px;
+                    border-radius: 12px;
                 }
 
                 .S6-ReplyBlock,
@@ -246,10 +265,28 @@ class NBUI:
 
                 }
                 .S6-ReplyBlock-0 {
-                    background: rgba(255,0,50,0.1)
+                    background: #6633991a;
                 }
                 .S6-ReplyBlock-1 {
-                    background: rgba(0,255,50,0.1)
+                    background: #008b8b24;
+                }
+                .S6-ReplyBlock-2 {
+                    background: #ff00ff1f;
+                }
+                .S6-ReplyBlock-3 {
+                    background: #8a2be21a;
+                }
+                .S6-ReplyBlock-4 {
+                    background: #b8860b2b;
+                }
+                .S6-ReplyBlock-5 {
+                    background: #ff8c002b;
+                }
+                .S6-ReplyBlock-6 {
+                    background: rgba(0,255,50,0.1);
+                }
+                .S6-ReplyBlock-7 {
+                    background: #6495ed24;
                 }
             </style>
             """
