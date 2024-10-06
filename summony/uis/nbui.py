@@ -49,13 +49,12 @@ class NBUI:
             if k.startswith("p_"):
                 if isinstance(v, (list, tuple)):
                     for i, vv in enumerate(v):
-                        if i < len(self.agents):
-                            self.agents[i].params[k[2:]] = vv
-                        else:
-                            break
+                        self.agents[i].params[k[2:]] = vv
+                elif isinstance(v, dict):
+                    for i, vv in v.items():
+                        self.agents[i].params[k[2:]] = vv
                 else:
                     for ag in self.agents:
-                        # TODO: implement SKIP_PARAM value (None won't work in all cases)
                         ag.params[k[2:]] = v
 
         self.mode = mode
