@@ -18,11 +18,17 @@ from dataclasses_json import dataclass_json
 from .agents import AgentInterface, Message
 from .openai_agent import OpenAIAgent
 from .anthropic_agent import AnthropicAgent
+from .gemini_agent import GeminiAgent
+from .ollama_agent import OllamaAgent
+from .dummy_agent import DummyAgent
 
 
 agent_classes = {
     "OpenAIAgent": OpenAIAgent,
     "AnthropicAgent": AnthropicAgent,
+    "GeminiAgent": GeminiAgent,
+    "OllamaAgent": OllamaAgent,
+    "DummyAgent": DummyAgent,
 }
 
 
@@ -103,11 +109,11 @@ def conversation_from_dict(data: ConversationData) -> list[AgentInterface]:
             model_name=ag_data["model_name"],
             params=ag_data["params"],
         )
-        ag.params_versions = data["params"][ag_idx]
+        ag.params_versions = data["params"][str(ag_idx)]
         ags.append(ag)
 
     for ag_idx, messages in data["agent_messages"].items():
-        ag = ags[ag_idx]
+        ag = ags[int(ag_idx)]
         for msg_or_list in messages:
             if not isinstance(msg_or_list, (list, tuple)):
                 msg = msg_or_list
