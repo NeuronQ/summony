@@ -1,9 +1,11 @@
 import asyncio
+from collections import defaultdict
 from IPython.display import Markdown, HTML, display
 import ipywidgets as widgets
 from typing import Any, AsyncIterator, Callable, Coroutine, Literal, Self
 
 from ..agents import AgentInterface, Message, get_default_agent_for_model
+from ..agents.serialization import hash_msg
 
 
 class NBUI:
@@ -343,4 +345,135 @@ class NBUI:
             """
 
     def _make_avatar_html(self, idx, name):
-        return f'<span class="S6-Avatar S6-AgentIdx-{idx}">🤖 {name}</span>'
+        return f'<span class="S6-Avatar S6-AgentIdx-{idx}" style="border: 1px solid goldenrod">🤖 {name}</span>'
+
+    def _make_message_display_levels(self, msg_by_id, msg_in_agents_count) -> dict:
+        levels = {}
+
+        for ag_idx, ag in enumerate(self.agents):
+            curr_level_idx = -1
+            for m in ag.messages:
+                if (
+                    not isinstance(m, (list, tuple))
+                    and m.role != "assistant"
+                    and msg_in_agents_count[hash_msg(m)] == len(self.agents)
+                ):
+                    curr_level_idx += 1
+
+                # add to levels
+                if curr_level_idx not in levels:
+                    levels[curr_level_idx] = [[], defaultdict(list)]
+                is_seq = isinstance(m, (list, tuple))
+                h = hash_msg(m) if not is_seq else tuple(hash_msg(mm) for mm in m)
+                if (
+                    not isinstance(m, (list, tuple))
+                    and m.role != "assistant"
+                    and msg_in_agents_count[h] == len(self.agents)
+                ):
+                    h = hash_msg(m)
+                    if h not in levels[curr_level_idx][0]:
+                        levels[curr_level_idx][0].append(h)
+                else:
+                    if h not in levels[curr_level_idx][1][ag_idx]:
+                        levels[curr_level_idx][1][ag_idx].append(h)
+
+        return levels
+
+    def show_conversation(self, short=None, mode="html"):
+        msg_by_id = {}
+        msg_in_agents_count = defaultdict(int)
+        for ag in self.agents:
+            for m in ag.messages:
+                if not isinstance(m, (list, tuple)):
+                    h = hash_msg(m)
+                    msg_by_id[h] = m
+                    msg_in_agents_count[h] += 1
+                else:
+                    for mm in m:
+                        h = hash_msg(mm)
+                        msg_by_id[h] = mm
+                        msg_in_agents_count[h] += 1
+        levels = self._make_message_display_levels(msg_by_id, msg_in_agents_count)
+        if mode == "md":
+            return self._make_conversation_md(levels, msg_by_id, short)
+        else:
+            return self._show_conversation(levels, msg_by_id, short)
+
+    def _make_conversation_md(self, levels, msg_by_id, short=None):
+        def msg2txt(msg):
+            c = msg.content[:500] if short else msg.content
+            return f"# {level_idx}:{i}:{j} << {msg.role} >> {hash_msg(msg)}\n```md\n{c}\n```\n"
+
+        out = ""
+
+        j = 0
+        for level_idx, (head, body) in levels.items():
+            i = 0
+            out += "-" * 80 + "\n"
+            out += "-" * 80 + "\n"
+            for msg_id in head:
+                msg = msg_by_id[msg_id]
+                out += "\n" + msg2txt(msg) + "\n"
+                i += 1
+            for ag_idx, msg_ids in body.items():
+                out += "-" * 80 + "\n"
+                out += f"# --- << {self.agents[ag_idx].name} >> ---\n"
+                for mid_or_group in msg_ids:
+                    if not isinstance(mid_or_group, (list, tuple)):
+                        msg = msg_by_id[mid_or_group]
+                        out += "\n#" + msg2txt(msg) + "\n"
+                    else:
+                        for mid_idx, mid in enumerate(mid_or_group):
+                            out += f"\n## --- (( variant {mid_idx} )) ---\n"
+                            out += "\n" + msg2txt(msg) + "\n"
+                    j += 1
+                j = 0
+                i += 1
+            out += "\n"
+
+        return out
+
+    def _show_conversation(self, levels, msg_by_id, short=80):
+        def _show_msg(msg, idx=None, ag_name=None):
+            display(
+                HTML(
+                    self._make_avatar_html(
+                        idx if msg.role == "assistant" else None,
+                        f"Agent {ag_name}"
+                        if ag_name and msg.role == "assistant"
+                        else msg.role.upper(),
+                    )
+                    + f" &nbsp;&nbsp;{level_idx}:{i}:{j}"
+                )
+            )
+            c = msg.content[:short] if short else msg.content
+            display(Markdown(c.replace("\n", "\n\n")))
+
+        j = 0
+        ag_idx = None
+        for level_idx, (head, body) in levels.items():
+            i = 0
+            display(HTML("<hr>"))
+            for msg_id in head:
+                msg = msg_by_id[msg_id]
+                _show_msg(msg)
+                i += 1
+            for ag_idx, msg_ids in body.items():
+                display(HTML('<hr style="border-style: dashed; border-bottom: 0">'))
+                ag_name = self.agents[ag_idx].name
+                for mid_or_group in msg_ids:
+                    if not isinstance(mid_or_group, (list, tuple)):
+                        msg = msg_by_id[mid_or_group]
+                        _show_msg(msg, ag_idx, ag_name)
+                    else:
+                        for mid_idx, mid in enumerate(mid_or_group):
+                            msg = msg_by_id[mid]
+                            _show_msg(
+                                msg,
+                                ag_idx,
+                                ag_name + f" #{mid_idx}",
+                            )
+                    j += 1
+                j = 0
+                i += 1
+            ag_idx = None
