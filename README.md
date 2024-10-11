@@ -2,6 +2,8 @@
 
 Collection of tools and UIs for chatting and experimenting with multiple LLMs (via their APIs) at the same time.
 
+![screenshot 0](./docs/ss0.png)
+
 ## Features
 
 - support for most top-tier and/or common LLM APIs:
@@ -50,7 +52,7 @@ await c("What is entropy?")  # async default to suport simultaneous display of p
 
 \[...]
 
-![screenshot 1](./docs/shot2.png)
+![screenshot 2](./docs/shot2.png)
 
 
 ```python
@@ -58,7 +60,7 @@ await c("What is entropy?")  # async default to suport simultaneous display of p
 await c("What about quantum entropy?", to=[0])
 ```
 
-![screenshot 1](./docs/sho3.png)
+![screenshot3](./docs/shot3.png)
 
 ```python
 # re-generate answer for third agent (originally generated reply messagee is kept in conversation history too, but ignored for further request unless explicitly picked by setting its .chosen=True)
