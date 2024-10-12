@@ -1,7 +1,8 @@
 [project]
 name = "summony"
-version = "0.1.0"
-description = "Interfaces for simultaneously chatting with multiple LLMs."
+version = "0.1.2"
+description = "Collection of tools and UIs for chatting and experimenting with multiple LLMs (via their APIs) at the same time."
+package_url = "https://github.com/NeuronQ/summony"
 readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
