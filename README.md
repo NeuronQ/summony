@@ -123,7 +123,7 @@ uv run ipython kernel install --user --name=s6-uv
 uv run --with jupyter jupyter lab
 ```
 
-### Using plain pip
+### Using just pip
 
 ```sh
 # (optional, recommended) create and activate a Python 3.12+ environment
