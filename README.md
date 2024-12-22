@@ -117,7 +117,7 @@ source ./.venv/bin/activate
 uv sync --locked --all-extras
 
 # create jupyter kernel for environment
-uv run ipython kernel install --user --name=s6-uv
+uv run ipython kernel install --user --name=s6
 
 # run jupyter
 uv run --with jupyter jupyter lab

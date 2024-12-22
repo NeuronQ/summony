@@ -4,7 +4,7 @@ version = "0.1.2"
 description = "Collection of tools and UIs for chatting and experimenting with multiple LLMs (via their APIs) at the same time."
 package_url = "https://github.com/NeuronQ/summony"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.9,<3.13"
 dependencies = [
     "dataclasses-json>=0.6.7",
     "ipywidgets>=8.1.5",
