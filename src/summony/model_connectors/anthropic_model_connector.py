@@ -28,13 +28,15 @@ class AnthropicModelConnector(ModelConnectorInterface):
 
     # static
     _DEFAULT_MAX_TOKENS = 4096
-    _CURRENT_SONNET_MODEL = "claude-3-5-sonnet-20240620"
+    _PREVIOUS_SONNET_MODEL = "claude-3-5-sonnet-20240620"
+    _CURRENT_SONNET_MODEL = "claude-3-5-sonnet-20241022"
     _CURRENT_OPUS_MODEL = "claude-3-opus-20240229"
     _CURRENT_HAIKU_MODEL = "claude-3-haiku-20240307"
     _MODEL_SHORTCUTS = {
         "claude": _CURRENT_SONNET_MODEL,
         "claude-sonnet": _CURRENT_SONNET_MODEL,
         "claude-3-5-sonnet": _CURRENT_SONNET_MODEL,
+        "claude-3-5-sonnet-previous": _PREVIOUS_SONNET_MODEL,
         "claude-3-sonnet": "claude-3-sonnet-20240229",
         "claude-opus": _CURRENT_OPUS_MODEL,
         "claude-3-opus": "claude-3-opus-20240229",
@@ -78,7 +80,7 @@ class AnthropicModelConnector(ModelConnectorInterface):
     def generate_stream(
         self, messages: list[MessageDict], model: str, **kwargs
     ) -> Iterator[Tuple[str, dict]]:
-        stream = self.async_client.messages.create(
+        stream = self.client.messages.create(
             **self._make_message_create_args(messages, model, kwargs), stream=True
         )
         i = 0
