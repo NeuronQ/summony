@@ -2,6 +2,7 @@ from .model_connectors import ModelConnectorInterface
 from .anthropic_model_connector import AnthropicModelConnector
 from .openai_model_connector import OpenAIModelConnector
 from .xai_model_connector import XAIModelConnector
+from .deepseek_model_connector import DeepSeekModelConnector
 from .gemini_model_connector import GeminiModelConnector
 from .ollama_model_connector import OllamaModelConnector
 from .dummy_model_connector import DummyModelConnector
@@ -14,6 +15,8 @@ def get_default_connector_for_model(model: str) -> ModelConnectorInterface:
         return OpenAIModelConnector()
     elif model.startswith("grok"):
         return XAIModelConnector()
+    elif model.startswith("deepseek"):
+        return DeepSeekModelConnector()
     elif model.startswith("claude"):
         return AnthropicModelConnector()
     elif model.startswith("gemini"):
