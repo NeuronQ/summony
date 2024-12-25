@@ -11,7 +11,7 @@ from typing import (
     Tuple,
 )
 
-from ollama import Client, AsyncClient
+from ollama import Client, AsyncClient, ChatResponse
 
 
 from .model_connectors import ModelConnectorInterface, MessageDict
@@ -55,7 +55,7 @@ class OllamaModelConnector(ModelConnectorInterface):
         )
         return response["message"]["content"], response
 
-    def _process_chunk(self, chunk: dict, chunk_idx: int) -> Tuple[str, dict]:
+    def _process_chunk(self, chunk: ChatResponse, chunk_idx: int) -> Tuple[str, dict]:
         try:
             chunk_text = chunk["message"]["content"]
         except Exception as exc:
@@ -66,7 +66,7 @@ class OllamaModelConnector(ModelConnectorInterface):
                 exc,
                 exc_info=True,
             )
-        return chunk_text, chunk
+        return chunk_text, chunk.model_dump()
 
     def generate_stream(
         self, messages: list[MessageDict], model: str, **kwargs
